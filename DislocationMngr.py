@@ -76,4 +76,14 @@ class DislocationMngr(object):
             distortion += d_i.distortion_at_point(Y)
             
         return distortion
+
+
+    def dump(self)
+        """dumps the location of all dislocations"""
+        
+        count=0
+        for d_i in disloactions:
+            print count,": ",d_i.X
+            
+        return distortion
         
