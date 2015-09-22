@@ -15,7 +15,7 @@ class Dislocation(object):
         self.X=np.copy(location)
         self.burgers=np.copy(bv)
         self.line_vec=np.array((0,0,1))
-        self.slip_plane=np.copy(sp)
+        self.slip_plane=np.copy(sp)/np.linalg.norm(sp)
         
 
     def stress_at_point(self,Y,mu,nu):
@@ -44,7 +44,7 @@ class Dislocation(object):
         and drag coeeficient (drag)"""
         
         F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
-        self.X += F*dt/drag
+        self.X += (F - np.dot(F,self.slip_plane)*self.slip_plane)*dt/drag
 
         
     def stress_screw(self, Y, mu, nu):
