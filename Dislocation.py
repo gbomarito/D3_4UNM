@@ -21,7 +21,7 @@ class Dislocation(object):
     def stress_at_point(self,Y,mu,nu):
         """calculates the stress at point Y caused by a dislocation (self) 
         in a material with elastic parameters nu and mu"""
-        sigma = self.stress_screw(self,Y,mu,nu) + self.stress_edge(self,Y,mu,nu)
+        sigma = self.stress_screw(Y,mu,nu) + self.stress_edge(Y,mu,nu)
         return sigma
 
 
@@ -65,11 +65,12 @@ class Dislocation(object):
         
         sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
-        sig[1,3] = -mu*b*r[1]/(2*np.pi*rn**2)
-        sig[3,1] = sig[1,3]
-        
-        sig[2,3] = -mu*b*r[0]/(2*np.pi*rn**2)
-        sig[3,2] = sig[2,3]
+        if np.abs(rn)>1e-8:
+            sig[0,2] = -mu*b*r[1]/(2*np.pi*rn**2)
+            sig[2,0] = sig[0,2]
+            
+            sig[1,2] = -mu*b*r[0]/(2*np.pi*rn**2)
+            sig[2,1] = sig[1,2]
         
         return np.dot(np.dot(g,sig),np.transpose(g))
 
@@ -86,12 +87,13 @@ class Dislocation(object):
         
         sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
-        K = -mu*b/(2*np.pi*(1-nu))
-        
-        sig[1,1] = K*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
-        sig[2,2] = K*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
-        sig[1,2] = -K*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
-        sig[2,1] = sig[1,2]
-        sig[3,3] = K*2*nu*(r[1]**2/rn**2)
+        if np.abs(rn)>1e-8:
+            K = -mu*b/(2*np.pi*(1-nu))
+            
+            sig[0,0] = K*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
+            sig[1,1] = K*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
+            sig[0,1] = -K*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
+            sig[1,0] = sig[1,2]
+            sig[2,2] = K*2*nu*(r[1]**2/rn**2)
         
         return np.dot(np.dot(g,sig),np.transpose(g))
