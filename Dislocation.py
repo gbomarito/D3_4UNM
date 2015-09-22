@@ -43,6 +43,10 @@ class Dislocation(object):
         """moves disloaction self based on the stress (sigma), time step (dt), 
         and drag coeeficient (drag)"""
         
+        F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
+        self.X += F*dt/drag
+
+        
     def stress_screw(self, Y, mu, nu):
         bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
 
