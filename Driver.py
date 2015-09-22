@@ -8,12 +8,12 @@ if __name__ == "__main__":
     """ Main DDD driver """
     
     
-    dt=1e-5
-    num_time_steps=10
+    dt=1e-3
+    num_time_steps=200
     
     nu=0.3
     mu=1.
-    drag=1.
+    drag=0.5
     
     #initialize dislocation manager
     dm=DislocationMngr(nu,mu,drag)
@@ -23,5 +23,7 @@ if __name__ == "__main__":
         dm.dd_step(dt)
         print "\n---:: Time Step ",i," ::---"
         dm.dump()
-        #dm.plot('output.png')
+        if i%10 is 0:
+            dm.plot_w_stress("sig{0:03d}".format(i))  
+ 
 
