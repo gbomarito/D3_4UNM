@@ -21,7 +21,7 @@ class Dislocation(object):
     def stress_at_point(self,Y,mu,nu):
         """calculates the stress at point Y caused by a dislocation (self) 
         in a material with elastic parameters nu and mu"""
-        
+        sigma = self.stress_screw(self,Y,mu,nu) + self.stress_edge(self,Y,mu,nu)
         return sigma
 
 
@@ -43,4 +43,55 @@ class Dislocation(object):
         """moves disloaction self based on the stress (sigma), time step (dt), 
         and drag coeeficient (drag)"""
         
+    def stress_screw(self, Y, mu, nu):
+        bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
+
+        if np.abs(np.abs(self.line_vec[0])-1)>.0001:
+        	yvec=np.cross(self.line_vec,np.array((1.,0.,0.)))
+        else:
+        	yvec=np.cross(self.line_vec,np.array((0.,1.,0.)))
         
+        yvec = yvec/np.linalg.norm(yvec)
+        xvec = np.cross(yvec,self.line_vec)
+        xvec = xvec/np.linalg.norm(xvec)
+        
+        g = np.vstack((xvec,yvec,self.line_vec))
+        g = np.transpose(g)
+        
+        r = np.dot(np.transpose(g),Y-self.X)
+        
+        b = np.linalg.norm(bscrew)
+        rn = np.linalg.norm(r)
+        
+        sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+        
+        sig[1,3] = -mu*b*r[1]/(2*np.pi*rn**2)
+        sig[3,1] = sig[1,3]
+        
+        sig[2,3] = -mu*b*r[0]/(2*np.pi*rn**2)
+        sig[3,2] = sig[2,3]
+        
+        return np.dot(np.dot(g,sig),np.transpose(g))
+
+    def stress_edge(self, Y, mu, nu):
+        bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
+        
+        g = np.vstack((bedge/np.linalg.norm(bedge),np.cross(self.line_vec,bedge/np.linalg.norm(bedge)),self.line_vec))
+        g = np.transpose(g)
+        
+        r = np.dot(np.transpose(g),Y-self.X)
+        
+        b = np.linalg.norm(bedge)
+        rn = np.linalg.norm(r)
+        
+        sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+        
+        K = -mu*b/(2*np.pi*(1-nu))
+        
+        sig[1,1] = K*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
+        sig[2,2] = K*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
+        sig[1,2] = -K*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
+        sig[2,1] = sig[1,2]
+        sig[3,3] = K*2*nu*(r[1]**2/rn**2)
+        
+        return np.dot(np.dot(g,sig),np.transpose(g))
