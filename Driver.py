@@ -8,24 +8,33 @@ if __name__ == "__main__":
     """ Main DDD driver """
     
     
-    dt=5e-5
-    num_time_steps=1000
+    suggested_dt=1e-3
+    sim_time=1e-1
     
     nu=0.3
     mu=27.0
-    drag=0.5
+    drag=1.0
     
     #initialize dislocation manager
     burgers=4.05e-10/(2.**.5)
-    dm=DislocationMngr(nu,mu,drag,dnum=20, b=burgers, area=burgers*100)
+    dm=DislocationMngr(nu,mu,drag,dnum=15, b=burgers, sim_size=burgers*100)
     
     #main time loop
-    plot_res=200
-    for i in range(num_time_steps):
-        dm.dd_step(dt)
-        print "\n---:: Time Step ",i," ::---"
+    plot_res=sim_time/30.0
+    t_count=1
+    next_plot_time=0.0
+    while time<sim_time:
+        dt,E_bal = dm.dd_step(suggested_dt)
+        
+        #output
+        print "\n---:: Time Step ",t_count," ::---"
+        print "\ttime step: ",dt
+        print "\tcurrent time: ",time
+        print "\tenergy balance: ",E_bal
         #dm.dump()
-        if i%plot_res is 0:
+        if time> next_plot_time:
             dm.plot_w_stress("sig{0:04d}".format(i/plot_res))  
+            next_plot_time+=plot_res
+        t_count+=1
  
 
