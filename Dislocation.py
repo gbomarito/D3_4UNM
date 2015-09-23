@@ -46,9 +46,13 @@ class Dislocation(object):
         F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
         self.X += (F - np.dot(F,self.slip_plane)*self.slip_plane)*dt/drag
 
+    def get_velocity(self,sigma,drag)
+	F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
+	V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
         
     def stress_screw(self, Y, mu, nu):
         bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
+	b = np.linalg.norm(bscrew)
 
         if np.abs(np.abs(self.line_vec[0])-1)>.0001:
         	yvec=np.cross(self.line_vec,np.array((1.,0.,0.)))
@@ -64,7 +68,6 @@ class Dislocation(object):
         
         r = np.dot(np.transpose(g),Y-self.X)
         
-        b = np.linalg.norm(bscrew)
         rn = np.linalg.norm(r)
         
         sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
@@ -80,13 +83,13 @@ class Dislocation(object):
 
     def stress_edge(self, Y, mu, nu):
         bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
+	b = np.linalg.norm(bedge)
         
-        g = np.vstack((bedge/np.linalg.norm(bedge),np.cross(self.line_vec,bedge/np.linalg.norm(bedge)),self.line_vec))
+        g = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
         g = np.transpose(g)
         
         r = np.dot(np.transpose(g),Y-self.X)
         
-        b = np.linalg.norm(bedge)
         rn = np.linalg.norm(r)
         
         sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
