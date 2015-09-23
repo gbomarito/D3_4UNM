@@ -40,19 +40,27 @@ class Dislocation(object):
 
 
     def move(self,sigma,dt,drag):
-        """moves disloaction self based on the stress (sigma), time step (dt), 
+        """moves dislocation (self) based on the stress (sigma), time step (dt), 
         and drag coeeficient (drag)"""
         
         F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
         self.X += (F - np.dot(F,self.slip_plane)*self.slip_plane)*dt/drag
 
     def get_velocity(self,sigma,drag)
-	F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
-	V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
+        """ finds the velocity of dislocation (self) based on the stress (sigma)
+        and drag"""
+        
+	    F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
+	    V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
+	    
+	    return V
         
     def stress_screw(self, Y, mu, nu):
+        """finds stress caused by screw component of dislocation (self) at point
+        Y in a material with elastic properties mu, nu"""
+        
         bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
-	b = np.linalg.norm(bscrew)
+	    b = np.linalg.norm(bscrew)
 
         if np.abs(np.abs(self.line_vec[0])-1)>.0001:
         	yvec=np.cross(self.line_vec,np.array((1.,0.,0.)))
@@ -82,8 +90,10 @@ class Dislocation(object):
         return np.dot(np.dot(g,sig),np.transpose(g))
 
     def stress_edge(self, Y, mu, nu):
+        """finds stress caused by edge component of dislocation (self) at point
+        Y in a material with elastic properties mu, nu"""
         bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
-	b = np.linalg.norm(bedge)
+	    b = np.linalg.norm(bedge)
         
         g = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
         g = np.transpose(g)
