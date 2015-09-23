@@ -17,11 +17,12 @@ class DislocationMngr(object):
         drag: drag coefficient <float>
     """
     
-    def __init__(self, n, m,d, dnum=20, b=1.0, area=1.0):
+    def __init__(self, n, m,d, dnum=20, b=1.0, sim_size=1.0):
         """Returns an initialized dislocation object"""
         self.nu=n
         self.mu=m
         self.drag=d
+        self.sim_size=sim_size
         
         self.dislocations=[]
         #self.dislocations.append(Dislocation( np.array((0.,0.,0.)), np.array((1.,0.,0.)), np.array((0.,1.,0.)) ))
@@ -32,7 +33,7 @@ class DislocationMngr(object):
                 burgers=np.array((b,0.,0.))
             else:
                 burgers=np.array((-b,0.,0.))
-            loc=np.array((-area+random.random()*2,-area+random.random()*2,-area+random.random()*2))
+            loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size))
             self.dislocations.append(Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
         
 
@@ -126,9 +127,9 @@ class DislocationMngr(object):
         xmin=-1.
         ymin=-1.
         #find stress field
-        delta = 0.05
-        sx = np.arange(-1.0, 2.0, delta)
-        sy = np.arange(-1.0, 2.0, delta)
+        delta = 0.2*self.sim_size
+        sx = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
+        sy = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
         sX, sY = np.meshgrid(sx, sy)
         pts=np.hstack( (sX.reshape(-1,1), sX.reshape(-1,1)) )
         sig_xx=np.zeros(sX.shape)
