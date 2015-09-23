@@ -17,23 +17,23 @@ class DislocationMngr(object):
         drag: drag coefficient <float>
     """
     
-    def __init__(self, n, m,d):
+    def __init__(self, n, m,d, dnum=20, b=1.0, area=1.0):
         """Returns an initialized dislocation object"""
         self.nu=n
         self.mu=m
         self.drag=d
         
         self.dislocations=[]
-        self.dislocations.append(Dislocation( np.array((0.,0.,0.)), np.array((1.,0.,0.)), np.array((1.,0.,0.)) ))
-        self.dislocations.append(Dislocation( np.array((1.,0.,0.)), np.array((-1.,0.,0.)), np.array((1.,0.,0.)) ))
+        #self.dislocations.append(Dislocation( np.array((0.,0.,0.)), np.array((1.,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation( np.array((1.,0.,0.)), np.array((-1.,0.,0.)), np.array((0.,1.,0.)) ))
         
-        for i in range(20):
+        for i in range(dnum):
             if random.random()>0.5:
-                burgers=np.array((1.,0.,0.))
+                burgers=np.array((b,0.,0.))
             else:
-                burgers=np.array((-1.,0.,0.))
-            loc=np.array((random.random(),random.random(),random.random()))
-            self.dislocations.append(Dislocation( loc, burgers, np.array((1.,0.,0.)) ))
+                burgers=np.array((-b,0.,0.))
+            loc=np.array((-area+random.random()*2,-area+random.random()*2,-area+random.random()*2))
+            self.dislocations.append(Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
         
 
     def dd_step(self,dt,sig_ff=None,FE_results=None):
@@ -98,6 +98,7 @@ class DislocationMngr(object):
         count=0
         for d_i in self.dislocations:
             print count,": ",d_i.X
+            count+=1
 
 
     def plot(self,filename):
