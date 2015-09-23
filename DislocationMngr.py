@@ -56,11 +56,45 @@ class DislocationMngr(object):
             if sig_ff is not None:
                 sigma[i] += sig_ff
                 
-            #TODO add FE stress field    
+            #TODO add FE stress field  
+            
+        #get velocities of each dislocation
+        velocities=[np.zeros(3)]*dnum
+        for i in range(dnum):
+            d_i=self.dislocations[i]
+            
+            velocities[i]=d_i.get_velocity(sigma[i],self.drag)  
+        
+        
+        #ENERGY CALCS
+        #caculate helper for energy dissipation by drag
+        v_dot_v = 0.0
+        for i in range(dnum):
+            v_dot_v += np.dot(velocities[i],velocities[i])
+        
+        #adaptive timestep
+        E_TOL=1e10
+        E_balnced=False
+        while not E_balanced:
+            E_drag=v_dot_v*self.drag*dt
+            E_dislocation=0.0
+            for i in range(dnum):
+                dx_i=velocities[i]*dt
+                for j in range(i+1,dnum):
+                    dx_j=velocities[j]*dt
+                    E_dislocation += Dislocation.interaction_energy(dislocations[i],dislocations[j],dx_i,dx_j)
+            
+            E_balanced = abs(E_drag-E_dislocation)<E_TOL
+            
+            if not E_balanced:
+                dt=dt/2.0
         
         #move dislocations
         for i in range(dnum):
-            self.dislocations[i].move(sigma[i],dt,self.drag)
+            dx_i=velocities[i]*dt
+            self.dislocations[i].move_set(dx_i)
+            
+        return dt, abs(E_drag-E_dislocation)
 
 
     def stress_at_point(self,Y):
@@ -110,9 +144,8 @@ class DislocationMngr(object):
         theta=[]
         
         for d in self.dislocations:
-            x.append(d.X[0])
-            y.append(d.X[1])
-            theta=1
+            theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
+            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
             
         plt.figure()   
         plt.scatter(x,y,marker=r'$\perp$')
@@ -122,10 +155,6 @@ class DislocationMngr(object):
     def plot_w_stress(self,filename,sig_ff=None,FE_results=None):
         """plot of all dislocations with a stress contour"""
         
-        xmax=2.
-        ymax=1.
-        xmin=-1.
-        ymin=-1.
         #find stress field
         delta = 0.2*self.sim_size
         sx = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
@@ -161,7 +190,7 @@ class DislocationMngr(object):
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
         plt.colorbar()
-        pylab.savefig(filename+"_xx.png", bbox_inches='tight')
+        pylab.savefig(filename+"_xx.png")
         plt.close()
         
         plt.figure()        
@@ -170,7 +199,7 @@ class DislocationMngr(object):
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
         plt.colorbar()
-        pylab.savefig(filename+"_yy.png", bbox_inches='tight')
+        pylab.savefig(filename+"_yy.png")
         plt.close()
         
         plt.figure()        
@@ -179,7 +208,7 @@ class DislocationMngr(object):
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
         plt.colorbar()
-        pylab.savefig(filename+"_zz.png", bbox_inches='tight')
+        pylab.savefig(filename+"_zz.png")
         plt.close()
         
         plt.figure()        
@@ -188,7 +217,7 @@ class DislocationMngr(object):
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
         plt.colorbar()
-        pylab.savefig(filename+"_xy.png", bbox_inches='tight')
+        pylab.savefig(filename+"_xy.png")
         plt.close()
         
         '''
