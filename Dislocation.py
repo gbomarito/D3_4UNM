@@ -238,6 +238,8 @@ class Dislocation(object):
 	    dE = np.dot(ba,xi)*np.dot(bb,xi)*np.log(Rmag/Ramag)
 	    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),np.cross(bb,xi))*np.log(Rmag/Ramag)
 	    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),Rhat)*np.dot(np.cross(bb,xi),Rhat)
-	    dE = -dE*mu/(2*np.py)
+	    dE = -dE*mu/(2*np.pi)
+	    
+	    return dE
 
 	
