@@ -25,9 +25,10 @@ class DislocationMngr(object):
         self.sim_size=sim_size
         
         self.dislocations=[]
-        #self.dislocations.append(Dislocation( np.array((0.,0.,0.)), np.array((1.,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation( np.array((1.,0.,0.)), np.array((-1.,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation( np.array((sim_size/2.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         
+        '''
         for i in range(dnum):
             if random.random()>0.5:
                 burgers=np.array((b,0.,0.))
@@ -35,6 +36,8 @@ class DislocationMngr(object):
                 burgers=np.array((-b,0.,0.))
             loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size))
             self.dislocations.append(Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
+            
+        '''
         
 
     def dd_step(self,dt,sig_ff=None,FE_results=None):
@@ -71,10 +74,11 @@ class DislocationMngr(object):
         v_dot_v = 0.0
         for i in range(dnum):
             v_dot_v += np.dot(velocities[i],velocities[i])
+        print v_dot_v
         
         #adaptive timestep
-        E_TOL=1e10
-        E_balnced=False
+        E_TOL=1e-3
+        E_balanced=False
         while not E_balanced:
             E_drag=v_dot_v*self.drag*dt
             E_dislocation=0.0
@@ -82,9 +86,12 @@ class DislocationMngr(object):
                 dx_i=velocities[i]*dt
                 for j in range(i+1,dnum):
                     dx_j=velocities[j]*dt
-                    E_dislocation += Dislocation.interaction_energy(dislocations[i],dislocations[j],dx_i,dx_j)
+                    E_dislocation += Dislocation.interaction_energy(self.dislocations[i],self.dislocations[j],dx_i,dx_j, self.mu,self.nu)
             
-            E_balanced = abs(E_drag-E_dislocation)<E_TOL
+            E_dislocation=E_dislocation*2 #TIHS FACTOR OF 2 IS BECAUSE WE HAVE A TOTAL LINE LENGTH OF DISLOCATION OF 2 PER PAIRWISE INTERACTION
+            
+            print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation
+            E_balanced = np.abs(E_drag+E_dislocation)/E_drag<E_TOL
             
             if not E_balanced:
                 dt=dt/2.0
@@ -94,7 +101,7 @@ class DislocationMngr(object):
             dx_i=velocities[i]*dt
             self.dislocations[i].move_set(dx_i)
             
-        return dt, abs(E_drag-E_dislocation)
+        return dt, abs(E_drag+E_dislocation)/E_drag
 
 
     def stress_at_point(self,Y):
@@ -156,7 +163,7 @@ class DislocationMngr(object):
         """plot of all dislocations with a stress contour"""
         
         #find stress field
-        delta = 0.2*self.sim_size
+        delta = 0.1*self.sim_size
         sx = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
         sy = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
         sX, sY = np.meshgrid(sx, sy)
