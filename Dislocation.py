@@ -28,13 +28,14 @@ class Dislocation(object):
     def disp_at_point(self,Y,mu,nu):
         """calculates the displacement at point Y caused by a dislocation (self) 
         in a material with elastic materparameters nu and mu"""
-        
+        disp = displacement_edge(Y,mu,nu) + displacement_screw(Y,mu,nu)
         return disp
 
 
     def distortion_at_point(self,Y,mu,nu):
         """calculates the distortion at point Y caused by a dislocation (self) 
         in a material with elastic parameters nu and mu"""
+        distortion = distortion_screw(Y,mu,nu) + distortion_edge(Y,mu,nu)
         
         return distortion
 
@@ -47,16 +48,31 @@ class Dislocation(object):
         self.X += (F - np.dot(F,self.slip_plane)*self.slip_plane)*dt/drag
 
     def move_set(self,dX):
-	self.X += dX
+        self.X += dX
+
+    def rotate_b(self,beta):
+        Q = beta
+        Q[0,2] = 0
+        Q[1,2] = 0
+        Q[2,0] = 0
+        Q[2,1] = 0
+        b = np.linalg.norm(self.burgers)        
+        self.burgers = Q*self.burgers
+        self.burgers = b*self.burgers/np.linalg.norm(self.burgers)
+        self.slip_plane = Q*self.slip_plane
+        self.slip_plane = self.slip_plane/np.linalg.norm(self.slip_plane)
+
+    def rotate_and_stretch(self,beta):
+        herp = 0
 
     def get_velocity(self,sigma,drag):
         """ finds the velocity of dislocation (self) based on the stress (sigma)
         and drag"""
         
-	F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
-	V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
+	    F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
+	    V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
 	    
-	return V
+	    return V
         
     def stress_screw(self, Y, mu, nu):
         """finds stress caused by screw component of dislocation (self) at point
@@ -108,13 +124,13 @@ class Dislocation(object):
         sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
         if np.abs(rn)>1e-8:
-            K = -mu*b/(2*np.pi*(1-nu))
+            C = -mu*b/(2*np.pi*(1-nu))
             
-            sig[0,0] = K*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
-            sig[1,1] = K*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
-            sig[0,1] = -K*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
+            sig[0,0] = C*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
+            sig[1,1] = C*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
+            sig[0,1] = -C*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
             sig[1,0] = sig[1,2]
-            sig[2,2] = K*2*nu*(r[1]**2/rn**2)
+            sig[2,2] = C*2*nu*(r[1]**2/rn**2)
         
         return np.dot(np.dot(g,sig),np.transpose(g))
 
@@ -140,9 +156,75 @@ class Dislocation(object):
         
         beta = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         if np.abs(rn)>1e-8:
-            herp = 0
+            beta[2,0] = -b*r[1]/(2.*np.pi*rn**2)
+            beta[2,1] = b*r[0]/(2.*np.pi*rn**2)
 
         return np.dot(np.dot(g,beta),np.transpose(g))
+
+    def distortion_edge(self,Y,mu,nu):
+        bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
+        b = np.linalg.norm(bedge)
+        
+        g = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
+        g = np.transpose(g)
+        
+        r = np.dot(np.transpose(g),Y-self.X)
+        
+        rn = np.linalg.norm(r)
+        
+        beta = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+        
+        if np.abs(rn)>1e-8:
+            C = -b/(4.*np.pi*(1-nu)*rn**2)
+            beta[0,0] = C*r[1]*((1.-nu) + 2.*r[0]**2/rn**2)
+            beta[0,1] = -C*r[0]*((3.-2.*nu) - 2.*r[1]**2/rn**2)
+            beta[1,0] = C*r[0]*((1-nu) + 2.*r[1]**2/rn**2)
+            beta[1,1] = C*r[1]*((1.-nu) - 2.*r[0]**2/rn**2)
+        
+        return np.dot(np.dot(g,beta),np.transpose(g))
+
+    def displacement_screw(self, Y, mu, nu):
+        bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
+        b = np.linalg.norm(bscrew)
+
+        if np.abs(np.abs(self.line_vec[0])-1)>.0001:
+            yvec=np.cross(self.line_vec,np.array((1.,0.,0.)))
+        else:
+            yvec=np.cross(self.line_vec,np.array((0.,1.,0.)))
+        
+        yvec = yvec/np.linalg.norm(yvec)
+        xvec = np.cross(yvec,self.line_vec)
+        xvec = xvec/np.linalg.norm(xvec)
+        
+        g = np.vstack((xvec,yvec,self.line_vec))
+        g = np.transpose(g)
+        
+        r = np.dot(np.transpose(g),Y-self.X)
+        
+        rn = np.linalg.norm(r)
+        
+        u = np.array([[0.,0.,0.])
+        if np.abs(rn)>1e-8:
+            
+        return np.dot(g,u)
+
+    def displacement_edge(self,Y,mu,nu):
+        bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
+        b = np.linalg.norm(bedge)
+        
+        g = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
+        g = np.transpose(g)
+        
+        r = np.dot(np.transpose(g),Y-self.X)
+        
+        rn = np.linalg.norm(r)
+        
+        beta = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+        
+        u = np.array([[0.,0.,0.])
+        if np.abs(rn)>1e-8:
+            u[2] = -b*np.atan2(r[0],r[1])/np.pi/2
+        return np.dot(g,u)
 
     def interaction_energy(A,B, dXa, dXb, mu, nu):
 	    Ra = B.X - A.X
@@ -152,7 +234,7 @@ class Dislocation(object):
 	    Ramag = np.linalg.norm(Ra)
 	    ba = A.burgers
 	    bb = B.burgers
-	    xi = A.line_vec
+	    xi = A.line_vec #Assumes the line vecs are parallel, only valid for 2D
 	    dE = np.dot(ba,xi)*np.dot(bb,xi)*np.log(Rmag/Ramag)
 	    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),np.cross(bb,xi))*np.log(Rmag/Ramag)
 	    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),Rhat)*np.dot(np.cross(bb,xi),Rhat)
