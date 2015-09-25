@@ -39,6 +39,8 @@ class DislocationMngr(object):
             
         '''
         
+        self.velocities_last=[None]*len(self.dislocations)
+        
 
     def dd_step(self,dt,sig_ff=None,FE_results=None):
         """Increments dislocations based on a time step (dt)
@@ -66,15 +68,18 @@ class DislocationMngr(object):
         for i in range(dnum):
             d_i=self.dislocations[i]
             
-            velocities[i]=d_i.get_velocity(sigma[i],self.drag)  
-        
+            velocity_next=d_i.get_velocity(sigma[i],self.drag)  
+            if self.velocities_last[i] is None:
+                velocities[i]=np.copy(velocity_next)
+            else:
+                velocities[i]=0.5*(velocity_next+self.velocities_last[i])
+            self.velocities_last[i]=np.copy(velocity_next)
         
         #ENERGY CALCS
         #caculate helper for energy dissipation by drag
         v_dot_v = 0.0
         for i in range(dnum):
             v_dot_v += np.dot(velocities[i],velocities[i])
-        print v_dot_v
         
         #adaptive timestep
         E_TOL=1e-3
@@ -95,7 +100,7 @@ class DislocationMngr(object):
             
             if not E_balanced:
                 dt=dt/2.0
-        
+            
         #move dislocations
         for i in range(dnum):
             dx_i=velocities[i]*dt
