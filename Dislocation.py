@@ -11,7 +11,8 @@ class Dislocation(object):
     """
     
     def __init__(self, location, bv, sp):
-        """Returns an initialized dislocation object"""
+        """Returns an initialized dislocation object.  Only dislocations 
+           with line vectors in the z direction are possible."""
         self.X=np.copy(location)
         self.burgers=np.copy(bv)
         self.line_vec=np.array((0,0,1))
@@ -42,20 +43,28 @@ class Dislocation(object):
 
     def move(self,sigma,dt,drag):
         """moves dislocation (self) based on the stress (sigma), time step (dt), 
-        and drag coeeficient (drag)"""
+        and drag coeeficient (drag).  """
         
         F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
         self.X += (F - np.dot(F,self.slip_plane)*self.slip_plane)*dt/drag
 
+    def move_verlot(self,sigma,dt,drag,V_old,dt_old)
+        """moves dislocation (self) based on the stress (sigma), time step (dt), 
+        and drag coeeficient (drag).  Verlot integration also requires the velocity and 
+           time step from the previous iteration"""
+        
+        V = self.get_velocity(sigma,drag)
+        dX = V*dt + .5*(V-V_old)*dt*dt/dt_old
+        self.move_set(dX)
+
     def move_set(self,dX):
         self.X += dX
 
-    def rotate_b(self,beta):
+    def rotate(self,beta):
         Q = beta
-        Q[0,2] = 0
-        Q[1,2] = 0
-        Q[2,0] = 0
-        Q[2,1] = 0
+        Q[0,2] = 0.
+        Q[1,2] = 0.
+        Q[2,2] = 1.
         b = np.linalg.norm(self.burgers)        
         self.burgers = Q*self.burgers
         self.burgers = b*self.burgers/np.linalg.norm(self.burgers)
@@ -63,7 +72,14 @@ class Dislocation(object):
         self.slip_plane = self.slip_plane/np.linalg.norm(self.slip_plane)
 
     def rotate_and_stretch(self,beta):
-        herp = 0
+        """Proposed duplicate of rotate, but allowing the second order effect of changing the length of Burgers vector"""
+        Q = beta
+        Q[0,2] = 0.
+        Q[1,2] = 0.
+        Q[2,2] = 1.
+        self.burgers = Q*self.burgers
+        self.slip_plane = Q*self.slip_plane
+        self.slip_plane = self.slip_plane/np.linalg.norm(self.slip_plane)
 
     def get_velocity(self,sigma,drag):
         """ finds the velocity of dislocation (self) based on the stress (sigma)
@@ -205,7 +221,7 @@ class Dislocation(object):
         
         u = np.array([[0.,0.,0.])
         if np.abs(rn)>1e-8:
-            
+            u[2] = -b*np.atan2(r[0],r[1])/np.pi/2
         return np.dot(g,u)
 
     def displacement_edge(self,Y,mu,nu):
@@ -223,7 +239,10 @@ class Dislocation(object):
         
         u = np.array([[0.,0.,0.])
         if np.abs(rn)>1e-8:
-            u[2] = -b*np.atan2(r[0],r[1])/np.pi/2
+            x = r[0]
+            y = r[1]
+            u[0] = (.5*b/np.pi)*(atan2(y,x) + x*y/((2. - 2.*nu)*rn**2.))
+            u[1] = (-.5*b/np.pi)*(1/(4.-4.*nu))*(np.log(rn**2.) + (x*x - y*y)/rn**2.)
         return np.dot(g,u)
 
     def interaction_energy(A,B, dXa, dXb, mu, nu):
