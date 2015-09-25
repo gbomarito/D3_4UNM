@@ -8,12 +8,14 @@ if __name__ == "__main__":
     """ Main DDD driver """
     
     
-    suggested_dt=1e-4
+    max_dt=1e-4
     sim_time=5e-1
     
     nu=0.3
     mu=270000000
     drag=1.0e4
+    
+    energy_tol=1e-3
     
     #initialize dislocation manager
     burgers=4.05e-8/(2.**.5)    #
@@ -25,9 +27,18 @@ if __name__ == "__main__":
     next_plot_time=0.0
     plot_num=0
     time=0.
+    suggested_dt=max_dt
     while time<sim_time:
-        dt,E_bal = dm.dd_step(suggested_dt)
+    
+        #do timestep
+        dt,E_bal = dm.dd_step(suggested_dt,E_TOL=energy_tol)
         time+=dt
+        
+        #adjust timestep based on last timestep
+        if dt<suggested_dt:
+            suggested_dt=dt
+        elif E_bal<energy_tol/10
+            suggested_dt=min(max_dt,suggested_dt*2.0)
         
         #output
         print "\n---:: Time Step ",t_count," ::---"

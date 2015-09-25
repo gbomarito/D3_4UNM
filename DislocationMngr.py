@@ -43,7 +43,7 @@ class DislocationMngr(object):
         self.dt_last=None
         
 
-    def dd_step(self,dt,sig_ff=None,FE_results=None):
+    def dd_step(self,dt,sig_ff=None,FE_results=None, E_TOL=1e-3):
         """Increments dislocations based on a time step (dt)
         optionally finite element results or a far field stress can be added"""
         
@@ -63,44 +63,26 @@ class DislocationMngr(object):
                 sigma[i] += sig_ff
                 
             #TODO add FE stress field  
-        '''    
-        #get velocities of each dislocation
+            
+        #get velocities_next of each dislocation
+        velocities_next=[np.zeros(3)]*dnum
         velocities=[np.zeros(3)]*dnum
         for i in range(dnum):
             d_i=self.dislocations[i]
             
-            velocity_next=d_i.get_velocity(sigma[i],self.drag)  
-            if self.velocities_last[i] is None:
-                velocities[i]=np.copy(velocity_next)
-            else:
-                velocities[i]=velocity_next+0.5*dt/self.dt_last*(velocity_next-self.velocities_last[i]) #verlot integration
-                #velocities[i]=0.5*(velocity_next+self.velocities_last[i]) #central diff
-            self.velocities_last[i]=np.copy(velocity_next)
-        
-        #ENERGY CALCS
-        #caculate helper for energy dissipation by drag
-        v_dot_v = 0.0
-        for i in range(dnum):
-            v_dot_v += np.dot(velocities[i],velocities[i])
-        '''
-
-
-        #adaptive timestep
-        E_TOL=1e-3
+        #adaptive timestep loop
         E_balanced=False
         while not E_balanced:
-            #get velocities of each dislocation
-            velocities=[np.zeros(3)]*dnum
+            #get current velocities of each dislocation
             for i in range(dnum):
                 d_i=self.dislocations[i]
                 
-                velocity_next=d_i.get_velocity(sigma[i],self.drag)  
+                velocities_next[i]=d_i.get_velocity(sigma[i],self.drag)  
                 if self.velocities_last[i] is None:
                     velocities[i]=np.copy(velocity_next)
                 else:
-                    velocities[i]=velocity_next+0.5*dt/self.dt_last*(velocity_next-self.velocities_last[i]) #verlot integration
-                    #velocities[i]=0.5*(velocity_next+self.velocities_last[i]) #central diff
-                
+                    velocities[i]=velocities_next[i]+0.5*dt/self.dt_last*(velocities_next[i]-self.velocities_last[i]) #verlot integration
+                    #velocities[i]=0.5*(velocities_next[i]+self.velocities_last[i]) #central diff 
             
             #ENERGY CALCS
             #caculate helper for energy dissipation by drag
@@ -124,7 +106,8 @@ class DislocationMngr(object):
             if not E_balanced:
                 dt=dt/2.0
 
-        self.velocities_last[i]=np.copy(velocity_next)        
+        for i in range(dnum):
+            self.velocities_last[i]=np.copy(velocities[i]_next)        
     
         #move dislocations
         for i in range(dnum):
