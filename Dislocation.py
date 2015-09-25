@@ -260,4 +260,23 @@ class Dislocation(object):
 	    
 	    return dE
 
+    def check_for_annihilation(A,B)
+        #Checks to see if B is in range of A.  Extinction threshold is an oblate ellipsoid
+        r = B.X - A.X
+        r_off_plane = np.dot(r,A.slip_plane)*A.slip_plane
+        r_in_plane = r - r_off_plane
+        b = np.linalg.norm(A.burgers)
+        d_climb = np.linalg.norm(r_off_plane)/b
+        d_glide = np.linalg.norm(r_in_plane)/b
+        if d_climb**2./25.+ d_glide**2./400. < 1.:
+            return True
+        else:
+            return False
+
+        
+        
+        
+        
+        
+
 	
