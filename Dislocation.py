@@ -48,7 +48,7 @@ class Dislocation(object):
         F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
         self.X += (F - np.dot(F,self.slip_plane)*self.slip_plane)*dt/drag
 
-    def move_verlot(self,sigma,dt,drag,V_old,dt_old)
+    def move_verlot(self,sigma,dt,drag,V_old,dt_old):
         """moves dislocation (self) based on the stress (sigma), time step (dt), 
         and drag coeeficient (drag).  Verlot integration also requires the velocity and 
            time step from the previous iteration"""
@@ -84,11 +84,10 @@ class Dislocation(object):
     def get_velocity(self,sigma,drag):
         """ finds the velocity of dislocation (self) based on the stress (sigma)
         and drag"""
-        
-	    F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
-	    V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
+        F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
+        V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
 	    
-	    return V
+        return V
         
     def stress_screw(self, Y, mu, nu):
         """finds stress caused by screw component of dislocation (self) at point
@@ -219,7 +218,7 @@ class Dislocation(object):
         
         rn = np.linalg.norm(r)
         
-        u = np.array([[0.,0.,0.])
+        u = np.array([0.,0.,0.])
         if np.abs(rn)>1e-8:
             u[2] = -b*np.atan2(r[0],r[1])/np.pi/2
         return np.dot(g,u)
@@ -237,7 +236,7 @@ class Dislocation(object):
         
         beta = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
-        u = np.array([[0.,0.,0.])
+        u = np.array([0.,0.,0.])
         if np.abs(rn)>1e-8:
             x = r[0]
             y = r[1]
