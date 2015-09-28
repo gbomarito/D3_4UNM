@@ -86,7 +86,6 @@ class Dislocation(object):
         and drag"""
         F = np.cross(np.dot(self.burgers,sigma),self.line_vec)
         V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
-	    
         return V
         
     def stress_screw(self, Y, mu, nu):
@@ -120,7 +119,6 @@ class Dislocation(object):
             
             sig[1,2] = -mu*b*r[0]/(2*np.pi*rn**2)
             sig[2,1] = sig[1,2]
-        
         return np.dot(np.dot(g,sig),np.transpose(g))
 
     def stress_edge(self, Y, mu, nu):
@@ -144,7 +142,7 @@ class Dislocation(object):
             sig[0,0] = C*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
             sig[1,1] = C*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
             sig[0,1] = -C*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
-            sig[1,0] = sig[1,2]
+            sig[1,0] = sig[0,1]
             sig[2,2] = C*2*nu*(r[1]**2/rn**2)
         
         return np.dot(np.dot(g,sig),np.transpose(g))
@@ -244,34 +242,39 @@ class Dislocation(object):
             u[1] = (-.5*b/np.pi)*(1/(4.-4.*nu))*(np.log(rn**2.) + (x*x - y*y)/rn**2.)
         return np.dot(g,u)
 
-    def interaction_energy(A,B, dXa, dXb, mu, nu):
-	    Ra = B.X - A.X
-	    R = Ra + dXb - dXa
-	    Rmag = np.linalg.norm(R)
-	    Rhat = R/Rmag
-	    Ramag = np.linalg.norm(Ra)
-	    ba = A.burgers
-	    bb = B.burgers
-	    xi = A.line_vec #Assumes the line vecs are parallel, only valid for 2D
-	    dE = np.dot(ba,xi)*np.dot(bb,xi)*np.log(Rmag/Ramag)
-	    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),np.cross(bb,xi))*np.log(Rmag/Ramag)
-	    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),Rhat)*np.dot(np.cross(bb,xi),Rhat)
-	    dE = -dE*mu/(2*np.pi)
-	    
-	    return dE
 
-    def check_for_annihilation(A,B)
-        #Checks to see if B is in range of A.  Extinction threshold is an oblate ellipsoid
-        r = B.X - A.X
-        r_off_plane = np.dot(r,A.slip_plane)*A.slip_plane
-        r_in_plane = r - r_off_plane
-        b = np.linalg.norm(A.burgers)
-        d_climb = np.linalg.norm(r_off_plane)/b
-        d_glide = np.linalg.norm(r_in_plane)/b
-        if d_climb**2./25.+ d_glide**2./400. < 1.:
-            return True
-        else:
-            return False
+################################################################################
+#  STATIC FUNCTIONS
+def interaction_energy(A,B, dXa, dXb, mu, nu):
+    Ra = B.X - A.X
+    R = Ra + dXb - dXa
+    Rmag = np.linalg.norm(R)
+    Rhat = R/Rmag
+    Ramag = np.linalg.norm(Ra)
+    Rahat = Ra/Ramag
+    ba = A.burgers
+    bb = B.burgers
+    xi = A.line_vec #Assumes the line vecs are parallel, only valid for 2D
+    dE = np.dot(ba,xi)*np.dot(bb,xi)*np.log(Rmag/Ramag)
+    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),np.cross(bb,xi))*np.log(Rmag/Ramag)
+    dE += (1/(1-nu))*np.dot(np.cross(ba,xi),Rhat)*np.dot(np.cross(bb,xi),Rhat)
+    dE += -(1/(1-nu))*np.dot(np.cross(ba,xi),Rahat)*np.dot(np.cross(bb,xi),Rahat)
+    dE = -dE*mu/(2*np.pi)
+    
+    return dE
+
+def check_for_annihilation(A,B):
+    #Checks to see if B is in range of A.  Extinction threshold is an oblate ellipsoid
+    r = B.X - A.X
+    r_off_plane = np.dot(r,A.slip_plane)*A.slip_plane
+    r_in_plane = r - r_off_plane
+    b = np.linalg.norm(A.burgers)
+    d_climb = np.linalg.norm(r_off_plane)/b
+    d_glide = np.linalg.norm(r_in_plane)/b
+    if d_climb**2./25.+ d_glide**2./400. < 1.:
+        return True
+    else:
+        return False
 
         
         

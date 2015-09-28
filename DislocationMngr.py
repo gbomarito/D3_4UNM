@@ -4,7 +4,7 @@ import pylab
 import math
 import random
 
-from Dislocation import Dislocation
+import Dislocation
 
 
 class DislocationMngr(object):
@@ -17,7 +17,7 @@ class DislocationMngr(object):
         drag: drag coefficient <float>
     """
     
-    def __init__(self, n, m,d, dnum=20, b=1.0, sim_size=1.0):
+    def __init__(self, n, m,d, dnum=2, b=1.0, sim_size=1.0):
         """Returns an initialized dislocation object"""
         self.nu=n
         self.mu=m
@@ -25,22 +25,33 @@ class DislocationMngr(object):
         self.sim_size=sim_size
         
         self.dislocations=[]
-        self.dislocations.append(Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation( np.array((sim_size/2.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         
-        '''
+        
+        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        
+        
         for i in range(dnum):
             if random.random()>0.5:
+                print " (+) "
                 burgers=np.array((b,0.,0.))
             else:
+                print " (-) "
                 burgers=np.array((-b,0.,0.))
-            loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size))
-            self.dislocations.append(Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
-            
-        '''
+            loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,0.0))
+            self.dislocations.append(Dislocation.Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
+        
+        
         
         self.velocities_last=[None]*len(self.dislocations)
         self.dt_last=None
+        self.E_bal_skip=False
+        
         
 
     def dd_step(self,dt,sig_ff=None,FE_results=None, E_TOL=1e-3):
@@ -50,9 +61,10 @@ class DislocationMngr(object):
         dnum=len(self.dislocations)
         
         #calculate stresses at each dislocation point
-        sigma=[np.zeros((3,3))]*dnum
+        sigma=[None]*dnum
         for i in range(dnum):
             d_i=self.dislocations[i]
+            sigma[i]=np.zeros((3,3))
         
             #stress cused by all dislocations
             for d_j in self.dislocations:
@@ -60,7 +72,7 @@ class DislocationMngr(object):
                 
             #far field stress
             if sig_ff is not None:
-                sigma[i] += sig_ff
+                sigma[i] += sig_ff(self.dislocation.X)
                 
             #TODO add FE stress field  
             
@@ -72,6 +84,7 @@ class DislocationMngr(object):
             
         #adaptive timestep loop
         E_balanced=False
+        bal_count=0
         while not E_balanced:
             #get current velocities of each dislocation
             for i in range(dnum):
@@ -79,7 +92,7 @@ class DislocationMngr(object):
                 
                 velocities_next[i]=d_i.get_velocity(sigma[i],self.drag)  
                 if self.velocities_last[i] is None:
-                    velocities[i]=np.copy(velocity_next)
+                    velocities[i]=np.copy(velocities_next[i])
                 else:
                     velocities[i]=velocities_next[i]+0.5*dt/self.dt_last*(velocities_next[i]-self.velocities_last[i]) #verlot integration
                     #velocities[i]=0.5*(velocities_next[i]+self.velocities_last[i]) #central diff 
@@ -98,23 +111,49 @@ class DislocationMngr(object):
                     dx_j=velocities[j]*dt
                     E_dislocation += Dislocation.interaction_energy(self.dislocations[i],self.dislocations[j],dx_i,dx_j, self.mu,self.nu)
             
-            E_dislocation=E_dislocation*2 #TIHS FACTOR OF 2 IS BECAUSE WE HAVE A TOTAL LINE LENGTH OF DISLOCATION OF 2 PER PAIRWISE INTERACTION
-            
-            #print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation
-            E_balanced = np.abs(E_drag+E_dislocation)/E_drag<E_TOL
+            print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation, "ratio: ", E_drag/E_dislocation
+            if self.E_bal_skip:
+                E_balanced=True
+                self.E_bal_skip=False
+            else:
+                E_balanced = np.abs(E_drag+E_dislocation)/E_drag<E_TOL
             
             if not E_balanced:
                 dt=dt/2.0
+                
+            bal_count+=1;
+            if bal_count>100:
+                raw_input()
 
+        #update history variables
+        self.dt_last=dt
         for i in range(dnum):
-            self.velocities_last[i]=np.copy(velocities[i]_next)        
+            self.velocities_last[i]=np.copy(velocities_next[i])        
     
         #move dislocations
         for i in range(dnum):
             dx_i=velocities[i]*dt
             self.dislocations[i].move_set(dx_i)
             
-        self.dt_last=dt
+        #check for annihilation
+        removal_list=[]
+        for i in range(dnum):
+            if i not in removal_list:
+                d_i=self.dislocations[i]
+                for j in range(dnum):
+                    if i not in removal_list and i is not j:
+                        d_j=self.dislocations[j]
+                        if Dislocation.check_for_annihilation(d_i,d_j):
+                            removal_list.append(i)
+                            removal_list.append(j)
+        removal_list.sort()
+        for i in reversed(removal_list):
+            print "deleteing: ",i
+            del self.dislocations[i]
+            del self.velocities_last[i]
+            self.E_bal_skip=True
+            #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
+        
         return dt, abs(E_drag+E_dislocation)/E_drag
 
 
@@ -178,7 +217,7 @@ class DislocationMngr(object):
         """plot of all dislocations with a stress contour"""
         
         #find stress field
-        delta = 0.1*self.sim_size
+        delta = 0.05*self.sim_size
         sx = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
         sy = np.arange(-1.5*self.sim_size, 1.5*self.sim_size, delta)
         sX, sY = np.meshgrid(sx, sy)
@@ -198,12 +237,12 @@ class DislocationMngr(object):
                 if sig_ff is not None:          #far field
                     sigma[i] += sig_ff
                 
-                sig_xx[i,j]=sig[0,0]
-                sig_yy[i,j]=sig[1,1]
-                sig_zz[i,j]=sig[2,2]
-                sig_xy[i,j]=sig[0,1]
-                sig_xz[i,j]=sig[0,2]
-                sig_yz[i,j]=sig[1,2]
+                sig_xx[i,j]=float(sig[0,0])
+                sig_yy[i,j]=float(sig[1,1])
+                sig_zz[i,j]=float(sig[2,2])
+                sig_xy[i,j]=float(sig[0,1])
+                sig_xz[i,j]=float(sig[0,2])
+                sig_yz[i,j]=float(sig[1,2])
         
         
         plt.figure()        

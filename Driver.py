@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from DislocationMngr import DislocationMngr
 
 
@@ -7,9 +8,10 @@ from DislocationMngr import DislocationMngr
 if __name__ == "__main__":
     """ Main DDD driver """
     
+    os.system("rm sig*.png")
     
-    max_dt=1e-4
-    sim_time=5e-1
+    max_dt=1e-2
+    sim_time=1e0
     
     nu=0.3
     mu=270000000
@@ -20,12 +22,13 @@ if __name__ == "__main__":
     #initialize dislocation manager
     burgers=4.05e-8/(2.**.5)    #
     dm=DislocationMngr(nu,mu,drag,dnum=15, b=burgers, sim_size=burgers*100)
+    dm.plot_w_stress("sig{0:04d}".format(0))
     
     #main time loop
-    plot_res=sim_time/100.0
+    plot_res=sim_time/20.0
     t_count=1
     next_plot_time=0.0
-    plot_num=0
+    plot_num=1
     time=0.
     suggested_dt=max_dt
     while time<sim_time:
@@ -37,19 +40,22 @@ if __name__ == "__main__":
         #adjust timestep based on last timestep
         if dt<suggested_dt:
             suggested_dt=dt
-        elif E_bal<energy_tol/10
-            suggested_dt=min(max_dt,suggested_dt*2.0)
+        elif E_bal < energy_tol/10.0:
+            suggested_dt=suggested_dt*2 #min(max_dt,suggested_dt*2.0)
         
         #output
         print "\n---:: Time Step ",t_count," ::---"
         print "\ttime step: ",dt
         print "\tcurrent time: ",time
         print "\tenergy balance: ",E_bal
-        dm.dump()
+        #dm.dump()
         if time> next_plot_time:
             dm.plot_w_stress("sig{0:04d}".format(plot_num))  
             next_plot_time+=plot_res
             plot_num+=1
         t_count+=1
+    
+    print "CONVERTING GIF"    
+    os.system("convert -delay 10 -loop 0 sig*_xx.png animation.gif")
  
 
