@@ -18,7 +18,7 @@ class DislocationSrc(object):
         products = []
         tau = np.dot(self.burgers,np.dot(sigma,self.slip_plane))
         if abs(tau)>self.taunuc:
-            L = mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*tau))
+            L = mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*tau)) #What happens in L < Lannihilation?
             Xstep = L*self.burgers/np.linalg.norm(self.burgers)/2.
             products.append(Dislocation.Dislocation( self.X + Xstep, self.burgers, self.slip_plane ))
             products.append(Dislocation.Dislocation( self.X - Xstep, -self.burgers, self.slip_plane ))            
