@@ -263,7 +263,7 @@ def interaction_energy(A,B, dXa, dXb, mu, nu):
     
     return dE
 
-def check_for_annihilation(A,B):
+def check_for_interaction(A,B):
     #Checks to see if B is in range of A.  Extinction threshold is an oblate ellipsoid
     r = B.X - A.X
     r_off_plane = np.dot(r,A.slip_plane)*A.slip_plane
@@ -275,6 +275,16 @@ def check_for_annihilation(A,B):
         return True
     else:
         return False
+
+def interact(A,B)
+    products = []
+    if abs(np.dot(A.burgers,B.burgers)+1)<.05:
+        return products
+    else:
+        products.append(A)
+        products.append(B)
+        return products
+    
 
         
         
