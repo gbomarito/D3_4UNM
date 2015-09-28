@@ -276,7 +276,7 @@ def check_for_interaction(A,B):
     else:
         return False
 
-def interact(A,B)
+def interact(A,B):
     products = []
     if abs(np.dot(A.burgers,B.burgers)+1)<.05:
         return products
