@@ -135,8 +135,9 @@ class DislocationMngr(object):
             dx_i=velocities[i]*dt
             self.dislocations[i].move_set(dx_i)
             
-        #check for annihilation
+        #check for reactions
         removal_list=[]
+        addition_list=[]
         for i in range(dnum):
             d_i=self.dislocations[i]
             for j in range(dnum):
@@ -145,8 +146,14 @@ class DislocationMngr(object):
                     if Dislocation.check_for_interaction(d_i,d_j,
                                                 self.annihilation_dist_glide,
                                                 self.annihilation_dist_climb):
-                        removal_list.append(i)
-                        removal_list.append(j)
+                        doReaction,products=Dislocation.interact(d_i,d_j)
+                        if doReaction:
+                            removal_list.append(i)
+                            removal_list.append(j)
+                            if products is not None:
+                                for p in products:
+                                    addition_list.append(p)
+        # remove the reactants
         removal_list.sort()
         for i in reversed(removal_list):
             print "deleteing: ",i
@@ -154,6 +161,9 @@ class DislocationMngr(object):
             del self.velocities_last[i]
             self.E_bal_skip=True
             #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
+        
+        # add reaction products
+        #TODO add code to add products of reactions in addition_list
         
         return dt, abs(E_drag+E_dislocation)/E_drag
 
