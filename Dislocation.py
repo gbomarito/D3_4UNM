@@ -300,12 +300,12 @@ def check_for_interaction(A,B, L_glide, L_climb):
     r_in_plane = r - r_off_plane
     d_climb = np.linalg.norm(r_off_plane)
     d_glide = np.linalg.norm(r_in_plane)
-    if d_climb**2./Lclimb**2.+ d_glide**2./Lglife**2. < 1.:
+    if d_climb**2./L_climb**2.+ d_glide**2./L_glide**2. < 1.:
         return True
     else:
         return False
 
-def interact(A,B)
+def interact(A,B):
     #We shpould consider adding in a dissipation output to aid in energy balance
     #(i.e. calculate the distance they would travel to annihilate)
 

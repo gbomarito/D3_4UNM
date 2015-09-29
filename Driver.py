@@ -2,20 +2,24 @@ import numpy as np
 import os
 from DislocationMngr import DislocationMngr
 
-
+def simple_shear():
+        sig = sigma=np.zeros((3,3))
+        sig[0,1] = 2700000.
+        sig[1,0] = sig[0,1]
+        return sig
 
 ################################################################################
 if __name__ == "__main__":
     """ Main DDD driver """
     
-    #os.system("rm sig*.png")
-    #os.system("rm D*.png")
+    os.system("rm sig*.png")
+    os.system("rm D*.png")
     
     max_dt=1e-2
     sim_time=1e-0
     
     nu=0.3
-    mu=270000000
+    mu=270000000.
     drag=1.0e4
     
     energy_tol=1e-3
@@ -34,9 +38,9 @@ if __name__ == "__main__":
     time=0.
     suggested_dt=max_dt
     while time<sim_time:
-    
+        """lambda X: time*simple_shear()/sim_time"""
         #do timestep
-        dt,E_bal = dm.dd_step(suggested_dt,E_TOL=energy_tol)
+        dt,E_bal = dm.dd_step(suggested_dt,sig_ff= None,E_TOL=energy_tol)
         time+=dt
         
         #adjust timestep based on last timestep
@@ -52,15 +56,18 @@ if __name__ == "__main__":
         print "\tenergy balance: ",E_bal
         #dm.dump()
         if time> next_plot_time:
-            #dm.plot_w_stress("sig{0:04d}".format(plot_num)) 
-            dm.plot("D{0:04d}".format(plot_num))  
+            dm.plot_w_stress("sig{0:04d}".format(plot_num),sig_ff=None) 
+            #dm.plot("D{0:04d}".format(plot_num))  
             next_plot_time+=plot_res
             plot_num+=1
         t_count+=1
     
     
 
-    #print "CONVERTING GIF"    
-    #os.system("convert -delay 10 -loop 0 D*.png animation.gif")
+    print "CONVERTING GIF"    
+    os.system("convert -delay 10 -loop 0 sig*_xy*.png animation.gif")
+    os.system("gifview -a animation.gif&")
+
+    
  
 

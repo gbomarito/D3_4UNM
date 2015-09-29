@@ -5,6 +5,7 @@ import math
 import random
 
 import Dislocation
+import DislocationSrc
 
 
 class DislocationMngr(object):
@@ -34,6 +35,11 @@ class DislocationMngr(object):
         
         self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+
+        self.sources=[]
+        L_nuc = 40.*b
+        self.sources.append(DislocationSrc.DislocationSrc( np.array((-sim_size/2.0,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
+        self.sources.append(DislocationSrc.DislocationSrc( np.array((sim_size/2.0,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
         
         '''
         for i in range(dnum):
@@ -49,6 +55,8 @@ class DislocationMngr(object):
         self.velocities_last=[None]*len(self.dislocations)
         self.dt_last=None
         self.E_bal_skip=False
+        self.L_glide = 20.*b
+        self.L_climb = 5.*b
         
         
 
@@ -57,6 +65,8 @@ class DislocationMngr(object):
         optionally finite element results or a far field stress can be added"""
         
         dnum=len(self.dislocations)
+
+        #print sig_ff(np.array([[0.,0.,0.]]))
         
         #calculate stresses at each dislocation point
         sigma=[None]*dnum
@@ -64,14 +74,14 @@ class DislocationMngr(object):
             d_i=self.dislocations[i]
             sigma[i]=np.zeros((3,3))
         
-            #stress cused by all dislocations
+            #stress caused by all dislocations
             for d_j in self.dislocations:
                 if d_i is not d_j:
                     sigma[i] += d_j.stress_at_point(d_i.X,self.mu,self.nu)
                 
             #far field stress
             if sig_ff is not None:
-                sigma[i] += sig_ff(self.dislocation.X)
+                sigma[i] += sig_ff(d_i.X)
                 
             #TODO add FE stress field  
             
@@ -141,7 +151,7 @@ class DislocationMngr(object):
             for j in range(dnum):
                 if i not in removal_list and j not in removal_list and i is not j:
                     d_j=self.dislocations[j]
-                    if Dislocation.check_for_interaction(d_i,d_j):
+                    if Dislocation.check_for_interaction(d_i,d_j, self.L_glide,self.L_climb):
                         removal_list.append(i)
                         removal_list.append(j)
         removal_list.sort()
@@ -151,6 +161,20 @@ class DislocationMngr(object):
             del self.velocities_last[i]
             self.E_bal_skip=True
             #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
+
+        #Nucleate dislocations at sources
+        """for i in self.sources:
+            thissig = self.stress_at_point(i.X)
+            #far field stress
+            if sig_ff is not None:
+                thissig += sig_ff(i.X)
+            res = i.load(thissig,self.mu,self.nu, self.L_glide)
+            if len(res) > 0:
+                self.E_bal_skip=True
+                for j in res:
+                    self.dislocations.append(j)
+                    self.velocities_last.append(None)#0.0?"""
+            
         
         return dt, abs(E_drag+E_dislocation)/E_drag
 
@@ -205,7 +229,9 @@ class DislocationMngr(object):
         h=plt.figure() 
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
-            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')   
+            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
+        for s in self.sources:
+            plt.text(s.X[0],s.X[1],'o')
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([]) 
         plt.axis((-1.5*self.sim_size,1.5*self.sim_size,-1.5*self.sim_size,1.5*self.sim_size))
@@ -235,7 +261,7 @@ class DislocationMngr(object):
                 sig=self.stress_at_point(loc) #disloc stress
                 
                 if sig_ff is not None:          #far field
-                    sigma[i] += sig_ff
+                    sig += sig_ff(loc)
                 
                 sig_xx[i,j]=float(sig[0,0])
                 sig_yy[i,j]=float(sig[1,1])
@@ -246,7 +272,7 @@ class DislocationMngr(object):
         
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-2e6,2e6,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -279,7 +305,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-1e7,1e7,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
