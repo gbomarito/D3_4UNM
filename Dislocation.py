@@ -17,7 +17,7 @@ class Dislocation(object):
         self.burgers=np.copy(bv)
         self.line_vec=np.array((0,0,1))
         self.slip_plane=np.copy(sp)/np.linalg.norm(sp)
-        
+
         self.has_screw_component=abs(bv[2])>np.linalg.norm(bv)/100
         self.has_edge_component=abs(np.linalg.norm(bv[0:1]))>np.linalg.norm(bv)/100
         
@@ -278,10 +278,17 @@ def interaction_energy(A,B, dXa, dXb, mu, nu):
     ba = A.burgers
     bb = B.burgers
     xi = A.line_vec #Assumes the line vecs are parallel, only valid for 2D
+"""
     dE = np.dot(ba,xi)*np.dot(bb,xi)*np.log(Rmag/Ramag)
     dE += (1/(1-nu))*np.dot(np.cross(ba,xi),np.cross(bb,xi))*np.log(Rmag/Ramag)
     dE += (1/(1-nu))*np.dot(np.cross(ba,xi),Rhat)*np.dot(np.cross(bb,xi),Rhat)
     dE += -(1/(1-nu))*np.dot(np.cross(ba,xi),Rahat)*np.dot(np.cross(bb,xi),Rahat)
+    dE = -dE*mu/(2*np.pi)
+"""
+    dE = ba[2]*bb[2]*np.log(Rmag/Ramag)
+    dE += (1/(1-nu))*(ba[1]*bb[1] + ba[0]*bb[0])*np.log(Rmag/Ramag)
+    dE += (1/(1-nu))*(ba[1]*Rhat[0] - ba[0]*Rhat[1])*(bb[1]*Rhat[0] - bb[0]*Rhat[1])
+    dE += -(1/(1-nu))*(ba[1]*Rahat[0] - ba[0]*Rahat[1])*(bb[1]*Rahat[0] - bb[0]*Rahat[1])
     dE = -dE*mu/(2*np.pi)
     
     return dE
