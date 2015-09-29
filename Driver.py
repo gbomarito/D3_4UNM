@@ -8,31 +8,44 @@ from DislocationMngr import DislocationMngr
 if __name__ == "__main__":
     """ Main DDD driver """
     
-    #os.system("rm sig*.png")
+    # os.system("rm sig*.png")
     os.system("rm D*.png")
     
-    max_dt=1e-2
+    
+    
+    #----:: INPUT ::----
+    # simulation params
+    starting_dt=1e-2
     sim_time=2e-0
     
+    # output params
+    plot_res=sim_time/200.
+    
+    # material params
     nu=0.3
     mu=270000000
     drag=1.0e4
+    burgers=4.05e-8/(2.**.5)
     
+    # integration/discretization params
     energy_tol=1e-3
     
-    #initialize dislocation manager
-    burgers=4.05e-8/(2.**.5)    #
-    dm=DislocationMngr(nu,mu,drag,dnum=50, b=burgers, sim_size=burgers*100)
+    
+    
+    #----:: ININTIALIZATION ::----
+    # initialize dislocation manager
+    dm=DislocationMngr(nu,mu,drag,dnum=50, b=burgers, sim_size=burgers*100, ad_climb=5*burgers, ad_glide=20*burgers)
     #dm.plot_w_stress("sig{0:04d}".format(0))
     dm.plot("D{0:04d}".format(0))  
     
-    #main time loop
-    plot_res=sim_time/200.
+    
+    
+    #----:: MAIN TIME LOOP ::----
     t_count=1
     next_plot_time=plot_res
     plot_num=1
     time=0.
-    suggested_dt=max_dt
+    suggested_dt=starting_dt
     while time<sim_time:
     
         #do timestep
@@ -43,12 +56,12 @@ if __name__ == "__main__":
         if dt<suggested_dt:
             suggested_dt=dt
         elif E_bal < energy_tol/10.0:
-            suggested_dt=suggested_dt*2 #min(max_dt,suggested_dt*2.0)
+            suggested_dt=suggested_dt*2
         
         #output
         print "\n---:: Time Step ",t_count," ::---"
-        print "\ttime step: ",dt
-        print "\tcurrent time: ",time
+        print "\ttime step: ",dt,
+        print "\tcurrent time: ",time,
         print "\tenergy balance: ",E_bal
         #dm.dump()
         if time> next_plot_time:
@@ -60,7 +73,7 @@ if __name__ == "__main__":
     
     
 
-    #print "CONVERTING GIF"    
+    print "CONVERTING GIF"    
     os.system("convert -delay 10 -loop 0 D*.png animation.gif")
  
 

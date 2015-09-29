@@ -17,12 +17,14 @@ class DislocationMngr(object):
         drag: drag coefficient <float>
     """
     
-    def __init__(self, n, m,d, dnum=2, b=1.0, sim_size=1.0):
+    def __init__(self, n, m,d, dnum=2, b=1.0, sim_size=1.0, ad_glide=20., ad_climb=5.):
         """Returns an initialized dislocation object"""
         self.nu=n
         self.mu=m
         self.drag=d
         self.sim_size=sim_size
+        self.annihilation_dist_glide=ad_glide
+        self.annihilation_dist_climb=ad_climb
         
         self.dislocations=[]
         '''
@@ -140,7 +142,9 @@ class DislocationMngr(object):
             for j in range(dnum):
                 if i not in removal_list and j not in removal_list and i is not j:
                     d_j=self.dislocations[j]
-                    if Dislocation.check_for_interaction(d_i,d_j):
+                    if Dislocation.check_for_interaction(d_i,d_j,
+                                                self.annihilation_dist_glide,
+                                                self.annihilation_dist_climb):
                         removal_list.append(i)
                         removal_list.append(j)
         removal_list.sort()
