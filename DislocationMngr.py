@@ -25,27 +25,25 @@ class DislocationMngr(object):
         self.sim_size=sim_size
         
         self.dislocations=[]
-        #self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         
         
-        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         
-        
+        '''
         for i in range(dnum):
-            if random.random()>0.5:
-                print " (+) "
+            if random.random()>1:
                 burgers=np.array((b,0.,0.))
             else:
-                print " (-) "
                 burgers=np.array((-b,0.,0.))
             loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,0.0))
             self.dislocations.append(Dislocation.Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
-        
+        '''
         
         
         self.velocities_last=[None]*len(self.dislocations)
@@ -68,7 +66,8 @@ class DislocationMngr(object):
         
             #stress cused by all dislocations
             for d_j in self.dislocations:
-                sigma[i] += d_j.stress_at_point(d_i.X,self.mu,self.nu)
+                if d_i is not d_j:
+                    sigma[i] += d_j.stress_at_point(d_i.X,self.mu,self.nu)
                 
             #far field stress
             if sig_ff is not None:
@@ -138,14 +137,13 @@ class DislocationMngr(object):
         #check for annihilation
         removal_list=[]
         for i in range(dnum):
-            if i not in removal_list:
-                d_i=self.dislocations[i]
-                for j in range(dnum):
-                    if i not in removal_list and i is not j:
-                        d_j=self.dislocations[j]
-                        if Dislocation.check_for_annihilation(d_i,d_j):
-                            removal_list.append(i)
-                            removal_list.append(j)
+            d_i=self.dislocations[i]
+            for j in range(dnum):
+                if i not in removal_list and j not in removal_list and i is not j:
+                    d_j=self.dislocations[j]
+                    if Dislocation.check_for_interaction(d_i,d_j):
+                        removal_list.append(i)
+                        removal_list.append(j)
         removal_list.sort()
         for i in reversed(removal_list):
             print "deleteing: ",i
@@ -204,13 +202,15 @@ class DislocationMngr(object):
         y=[]
         theta=[]
         
+        h=plt.figure() 
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
-            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
-            
-        plt.figure()   
-        plt.scatter(x,y,marker=r'$\perp$')
-        pylab.savefig(filename+".png", bbox_inches='tight')
+            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')   
+        h.axes[0].set_xticks([])
+        h.axes[0].set_yticks([]) 
+        plt.axis((-1.5*self.sim_size,1.5*self.sim_size,-1.5*self.sim_size,1.5*self.sim_size))
+        pylab.savefig(filename+".png")
+        plt.close()
 
 
     def plot_w_stress(self,filename,sig_ff=None,FE_results=None):
@@ -245,8 +245,10 @@ class DislocationMngr(object):
                 sig_yz[i,j]=float(sig[1,2])
         
         
-        plt.figure()        
-        plt.contourf(sX,sY,sig_xx, levels=np.linspace(np.min(sig_xx),np.max(sig_xx),100) )
+        h=plt.figure()        
+        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-2e8,2e8,100) )
+        h.axes[0].set_xticks([])
+        h.axes[0].set_yticks([])
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
@@ -254,8 +256,10 @@ class DislocationMngr(object):
         pylab.savefig(filename+"_xx.png")
         plt.close()
         
-        plt.figure()        
-        plt.contourf(sX,sY,sig_yy,levels=np.linspace(np.min(sig_yy),np.max(sig_yy),100) )
+        h=plt.figure()        
+        plt.contourf(sX,sY,sig_yy, levels=np.linspace(-2e8,2e8,100) )
+        h.axes[0].set_xticks([])
+        h.axes[0].set_yticks([])
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
@@ -263,8 +267,10 @@ class DislocationMngr(object):
         pylab.savefig(filename+"_yy.png")
         plt.close()
         
-        plt.figure()        
-        plt.contourf(sX,sY,sig_zz,levels=np.linspace(np.min(sig_zz),np.max(sig_zz),100))
+        h=plt.figure()        
+        plt.contourf(sX,sY,sig_zz, levels=np.linspace(-2e8,2e8,100) )
+        h.axes[0].set_xticks([])
+        h.axes[0].set_yticks([])
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
@@ -272,8 +278,10 @@ class DislocationMngr(object):
         pylab.savefig(filename+"_zz.png")
         plt.close()
         
-        plt.figure()        
-        plt.contourf(sX,sY,sig_xy,levels=np.linspace(np.min(sig_xy),np.max(sig_xy),100))
+        h=plt.figure()        
+        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-2e8,2e8,100) )
+        h.axes[0].set_xticks([])
+        h.axes[0].set_yticks([])
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
