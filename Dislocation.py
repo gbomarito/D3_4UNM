@@ -278,13 +278,13 @@ def interaction_energy(A,B, dXa, dXb, mu, nu):
     ba = A.burgers
     bb = B.burgers
     xi = A.line_vec #Assumes the line vecs are parallel, only valid for 2D
-"""
+    """
     dE = np.dot(ba,xi)*np.dot(bb,xi)*np.log(Rmag/Ramag)
     dE += (1/(1-nu))*np.dot(np.cross(ba,xi),np.cross(bb,xi))*np.log(Rmag/Ramag)
     dE += (1/(1-nu))*np.dot(np.cross(ba,xi),Rhat)*np.dot(np.cross(bb,xi),Rhat)
     dE += -(1/(1-nu))*np.dot(np.cross(ba,xi),Rahat)*np.dot(np.cross(bb,xi),Rahat)
     dE = -dE*mu/(2*np.pi)
-"""
+    """
     dE = ba[2]*bb[2]*np.log(Rmag/Ramag)
     dE += (1/(1-nu))*(ba[1]*bb[1] + ba[0]*bb[0])*np.log(Rmag/Ramag)
     dE += (1/(1-nu))*(ba[1]*Rhat[0] - ba[0]*Rhat[1])*(bb[1]*Rhat[0] - bb[0]*Rhat[1])

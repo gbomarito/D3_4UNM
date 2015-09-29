@@ -25,25 +25,24 @@ class DislocationMngr(object):
         self.sim_size=sim_size
         
         self.dislocations=[]
+        '''
         self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        
-        
         self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        
         '''
+        
         for i in range(dnum):
-            if random.random()>1:
+            if random.random()>0.5:
                 burgers=np.array((b,0.,0.))
             else:
                 burgers=np.array((-b,0.,0.))
             loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,0.0))
             self.dislocations.append(Dislocation.Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
-        '''
+        
         
         
         self.velocities_last=[None]*len(self.dislocations)
@@ -110,7 +109,7 @@ class DislocationMngr(object):
                     dx_j=velocities[j]*dt
                     E_dislocation += Dislocation.interaction_energy(self.dislocations[i],self.dislocations[j],dx_i,dx_j, self.mu,self.nu)
             
-            print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation, "ratio: ", E_drag/E_dislocation
+            #print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation, "ratio: ", E_drag/E_dislocation
             if self.E_bal_skip:
                 E_balanced=True
                 self.E_bal_skip=False

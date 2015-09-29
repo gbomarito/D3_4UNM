@@ -9,10 +9,10 @@ if __name__ == "__main__":
     """ Main DDD driver """
     
     #os.system("rm sig*.png")
-    #os.system("rm D*.png")
+    os.system("rm D*.png")
     
     max_dt=1e-2
-    sim_time=1e-0
+    sim_time=2e-0
     
     nu=0.3
     mu=270000000
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     dm.plot("D{0:04d}".format(0))  
     
     #main time loop
-    plot_res=sim_time/50.0
+    plot_res=sim_time/200.
     t_count=1
     next_plot_time=plot_res
     plot_num=1
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     
 
     #print "CONVERTING GIF"    
-    #os.system("convert -delay 10 -loop 0 D*.png animation.gif")
+    os.system("convert -delay 10 -loop 0 D*.png animation.gif")
  
 
