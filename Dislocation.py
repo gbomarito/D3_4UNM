@@ -18,11 +18,24 @@ class Dislocation(object):
         self.line_vec=np.array((0,0,1))
         self.slip_plane=np.copy(sp)/np.linalg.norm(sp)
         
+        self.has_screw_component=abs(bv[2])>np.linalg.norm(bv)/100
+        self.has_edge_component=abs(np.linalg.norm(bv[0:1]))>np.linalg.norm(bv)/100
+        
+        self.update_g_mats()
+        
 
     def stress_at_point(self,Y,mu,nu):
         """calculates the stress at point Y caused by a dislocation (self) 
         in a material with elastic parameters nu and mu"""
-        sigma = self.stress_screw(Y,mu,nu) + self.stress_edge(Y,mu,nu)
+        if self.has_edge_component and self.has_screw_component:
+            sigma = self.stress_screw(Y,mu,nu) + self.stress_edge(Y,mu,nu)
+        elif self.has_edge_component:
+            sigma = self.stress_edge(Y,mu,nu)
+        elif self.has_screw_component:
+            sigma = self.stress_screw(Y,mu,nu)
+        else:
+            print "***WARNING**** dislocation without screw or edge component!"
+        
         return sigma
 
 
@@ -70,9 +83,11 @@ class Dislocation(object):
         self.burgers = b*self.burgers/np.linalg.norm(self.burgers)
         self.slip_plane = Q*self.slip_plane
         self.slip_plane = self.slip_plane/np.linalg.norm(self.slip_plane)
+        update_g_mats(self)
 
     def rotate_and_stretch(self,beta):
-        """Proposed duplicate of rotate, but allowing the second order effect of changing the length of Burgers vector"""
+        """Proposed duplicate of rotate, but allowing the second order effect of 
+        changing the length of Burgers vector"""
         Q = beta
         Q[0,2] = 0.
         Q[1,2] = 0.
@@ -80,6 +95,7 @@ class Dislocation(object):
         self.burgers = Q*self.burgers
         self.slip_plane = Q*self.slip_plane
         self.slip_plane = self.slip_plane/np.linalg.norm(self.slip_plane)
+        update_g_mats(self)
 
     def get_velocity(self,sigma,drag):
         """ finds the velocity of dislocation (self) based on the stress (sigma)
@@ -88,13 +104,9 @@ class Dislocation(object):
         V = (F - np.dot(F,self.slip_plane)*self.slip_plane)/drag
         return V
         
-    def stress_screw(self, Y, mu, nu):
-        """finds stress caused by screw component of dislocation (self) at point
-        Y in a material with elastic properties mu, nu"""
-        
-        bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
-        b = np.linalg.norm(bscrew)
-
+    def update_g_mats(self):
+        """precaculates the g matrices used in stress calculations"""
+        #update the g matrix for screw component
         if np.abs(np.abs(self.line_vec[0])-1)>.0001:
         	yvec=np.cross(self.line_vec,np.array((1.,0.,0.)))
         else:
@@ -104,33 +116,44 @@ class Dislocation(object):
         xvec = np.cross(yvec,self.line_vec)
         xvec = xvec/np.linalg.norm(xvec)
         
-        g = np.vstack((xvec,yvec,self.line_vec))
-        g = np.transpose(g)
+        self.g_screw = np.vstack((xvec,yvec,self.line_vec))
+        self.g_screw = np.transpose(self.g_screw)
         
-        r = np.dot(np.transpose(g),Y-self.X)
+        #update g matrix for edge component
+        bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
+        b = np.linalg.norm(bedge)
+        self.g_edge = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
+        self.g_edge = np.transpose(self.g_edge)
+        
+    def stress_screw(self, Y, mu, nu):
+        """finds stress caused by screw component of dislocation (self) at point
+        Y in a material with elastic properties mu, nu"""
+        
+        bscrew = np.array((0.,0.,self.burgers[2])) #np.dot(self.burgers,self.line_vec)*self.line_vec
+        b = self.burgers[2] #np.linalg.norm(bscrew)
+
+        r = np.dot(np.transpose(self.g_screw),Y-self.X)
         
         rn = np.linalg.norm(r)
         
         sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
         if np.abs(rn)>1e-8:
-            sig[0,2] = -mu*b*r[1]/(2*np.pi*rn**2)
+            sig[0,2] = -mu*b*r[1]/(2*np.pi*rn*rn)
             sig[2,0] = sig[0,2]
             
-            sig[1,2] = -mu*b*r[0]/(2*np.pi*rn**2)
+            sig[1,2] = -mu*b*r[0]/(2*np.pi*rn*rn)
             sig[2,1] = sig[1,2]
-        return np.dot(np.dot(g,sig),np.transpose(g))
+        
+        return np.dot(np.dot(self.g_screw,sig),np.transpose(self.g_screw))
 
     def stress_edge(self, Y, mu, nu):
         """finds stress caused by edge component of dislocation (self) at point
         Y in a material with elastic properties mu, nu"""
-        bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
-        b = np.linalg.norm(bedge)
+        bedge = np.array((self.burgers[0],self.burgers[1],0.)) #self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
+        b = np.linalg.norm(bedge[0:1])
         
-        g = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
-        g = np.transpose(g)
-        
-        r = np.dot(np.transpose(g),Y-self.X)
+        r = np.dot(np.transpose(self.g_edge),Y-self.X)
         
         rn = np.linalg.norm(r)
         
@@ -139,13 +162,13 @@ class Dislocation(object):
         if np.abs(rn)>1e-8:
             C = -mu*b/(2*np.pi*(1-nu))
             
-            sig[0,0] = C*(r[1]/rn**4)*(r[1]**2 + 3*r[0]**2)
-            sig[1,1] = C*(r[1]/rn**4)*(r[1]**2 - r[0]**2)
-            sig[0,1] = -C*(r[0]/rn**4)*(r[0]**2 - r[1]**2)
+            sig[0,0] = C*(r[1]/rn**4)*(r[1]*r[1] + 3*r[0]*r[0])
+            sig[1,1] = C*(r[1]/rn**4)*(r[1]*r[1] - r[0]*r[0])
+            sig[0,1] = -C*(r[0]/rn**4)*(r[0]*r[0] - r[1]*r[1])
             sig[1,0] = sig[0,1]
-            sig[2,2] = C*2*nu*(r[1]**2/rn**2)
+            sig[2,2] = C*2*nu*(r[1]*r[1]/(rn*rn))
         
-        return np.dot(np.dot(g,sig),np.transpose(g))
+        return np.dot(np.dot(self.g_edge,sig),np.transpose(self.g_edge))
 
     def distortion_screw(self, Y, mu, nu):
         bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec

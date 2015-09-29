@@ -66,7 +66,8 @@ class DislocationMngr(object):
         
             #stress cused by all dislocations
             for d_j in self.dislocations:
-                sigma[i] += d_j.stress_at_point(d_i.X,self.mu,self.nu)
+                if d_i is not d_j:
+                    sigma[i] += d_j.stress_at_point(d_i.X,self.mu,self.nu)
                 
             #far field stress
             if sig_ff is not None:
