@@ -18,38 +18,39 @@ class DislocationMngr(object):
         drag: drag coefficient <float>
     """
     
-    def __init__(self, n, m,d, dnum=2, b=1.0, sim_size=1.0):
+    def __init__(self, n, m,d, dnum=2, b=1.0, sim_size=1.0, ad_glide=20., ad_climb=5.):
         """Returns an initialized dislocation object"""
         self.nu=n
         self.mu=m
         self.drag=d
         self.sim_size=sim_size
+        self.annihilation_dist_glide=ad_glide
+        self.annihilation_dist_climb=ad_climb
         
         self.dislocations=[]
+        '''
         self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        
-        
         self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))'''
 
         self.sources=[]
         L_nuc = 40.*b
         self.sources.append(DislocationSrc.DislocationSrc( np.array((-sim_size/2.0,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
         self.sources.append(DislocationSrc.DislocationSrc( np.array((sim_size/2.0,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
         
-        '''
+        
         for i in range(dnum):
-            if random.random()>1:
+            if random.random()>0.5:
                 burgers=np.array((b,0.,0.))
             else:
                 burgers=np.array((-b,0.,0.))
             loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,0.0))
             self.dislocations.append(Dislocation.Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
-        '''
+        
         
         
         self.velocities_last=[None]*len(self.dislocations)
@@ -120,7 +121,7 @@ class DislocationMngr(object):
                     dx_j=velocities[j]*dt
                     E_dislocation += Dislocation.interaction_energy(self.dislocations[i],self.dislocations[j],dx_i,dx_j, self.mu,self.nu)
             
-            print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation, "ratio: ", E_drag/E_dislocation
+            #print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation, "ratio: ", E_drag/E_dislocation
             if self.E_bal_skip:
                 E_balanced=True
                 self.E_bal_skip=False
@@ -144,16 +145,23 @@ class DislocationMngr(object):
             dx_i=velocities[i]*dt
             self.dislocations[i].move_set(dx_i)
             
-        #check for annihilation
+        #check for reactions
         removal_list=[]
+        addition_list=[]
         for i in range(dnum):
             d_i=self.dislocations[i]
             for j in range(dnum):
                 if i not in removal_list and j not in removal_list and i is not j:
                     d_j=self.dislocations[j]
-                    if Dislocation.check_for_interaction(d_i,d_j, self.L_glide,self.L_climb):
-                        removal_list.append(i)
-                        removal_list.append(j)
+                    if Dislocation.check_for_interaction(d_i,d_j,self.annihilation_dist_glide,self.annihilation_dist_climb):
+                        doReaction,products=Dislocation.interact(d_i,d_j)
+                        if doReaction:
+                            removal_list.append(i)
+                            removal_list.append(j)
+                            if products is not None:
+                                for p in products:
+                                    addition_list.append(p)
+        # remove the reactants
         removal_list.sort()
         for i in reversed(removal_list):
             print "deleteing: ",i
@@ -175,6 +183,9 @@ class DislocationMngr(object):
                     self.dislocations.append(j)
                     self.velocities_last.append(None)#0.0?"""
             
+        
+        # add reaction products
+        #TODO add code to add products of reactions in addition_list
         
         return dt, abs(E_drag+E_dislocation)/E_drag
 

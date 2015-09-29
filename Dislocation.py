@@ -294,13 +294,18 @@ def interaction_energy(A,B, dXa, dXb, mu, nu):
     return dE
 
 def check_for_interaction(A,B, L_glide, L_climb):
-    #Checks to see if B is in range of A.  Extinction threshold is an oblate ellipsoid
+    """Checks to see if B is in range of A.  Extinction threshold is an oblate 
+    ellipsoid"""
     r = B.X - A.X
     r_off_plane = np.dot(r,A.slip_plane)*A.slip_plane
     r_in_plane = r - r_off_plane
     d_climb = np.linalg.norm(r_off_plane)
     d_glide = np.linalg.norm(r_in_plane)
+<<<<<<< HEAD
     if d_climb**2./L_climb**2.+ d_glide**2./L_glide**2. < 1.:
+=======
+    if (d_climb/L_climb)**2. + (d_glide/L_glide)**2. < 1.:
+>>>>>>> d7993543cc9bc439c248a8e845de216ecbb70bf6
         return True
     else:
         return False
@@ -308,14 +313,13 @@ def check_for_interaction(A,B, L_glide, L_climb):
 def interact(A,B):
     #We shpould consider adding in a dissipation output to aid in energy balance
     #(i.e. calculate the distance they would travel to annihilate)
-
-    products = []
-    if abs(np.dot(A.burgers,B.burgers)+1)<.05:
-        return products
+    if abs(np.dot(A.burgers/abs(np.linalg.norm(A.burgers)),B.burgers/abs(np.linalg.norm(B.burgers)))+1)<.05:
+        print "detected annihilation"
+        return True, None
     else:
-        products.append(A)
-        products.append(B)
-        return products
+        return False, None
+    # else: just one product
+    #    return True, do_reaction(A,B)
     
 
         
