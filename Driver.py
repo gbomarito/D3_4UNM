@@ -20,10 +20,10 @@ if __name__ == "__main__":
     #----:: INPUT ::----
     # simulation params
     starting_dt=1e-2
-    sim_time=2e-0
+    sim_time=1e-0
     
     # output params
-    plot_res=sim_time/200.
+    plot_res=sim_time/50.
     
     # material params
     nu=0.3
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     
     #----:: ININTIALIZATION ::----
     # initialize dislocation manager
-    dm=DislocationMngr(nu,mu,drag,dnum=50, b=burgers, sim_size=burgers*100, ad_climb=5*burgers, ad_glide=20*burgers)
+    dm=DislocationMngr(nu,mu,drag,dnum=20, b=burgers, sim_size=burgers*100, ad_climb=5*burgers, ad_glide=20*burgers)
     #dm.plot_w_stress("sig{0:04d}".format(0))
     dm.plot("D{0:04d}".format(0))  
     
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         
         #output
         print "\n---:: Time Step ",t_count," ::---"
-        print "\ttime step: ",dt,
+        print "time step: ",dt,
         print "\tcurrent time: ",time,
         print "\tenergy balance: ",E_bal
         #dm.dump()
@@ -79,6 +79,12 @@ if __name__ == "__main__":
 
     print "CONVERTING GIF"    
     os.system("convert -delay 10 -loop 0 sig*_xy*.png animation.gif")
+    #os.system("convert -delay 10 -loop 0 sig*_xx*.png animation.gif")
+    #os.system("convert -delay 10 -loop 0 sig*_xz*.png animation.gif")
+    #os.system("convert -delay 10 -loop 0 sig*_yz*.png animation.gif")
+    #os.system("convert -delay 10 -loop 0 sig*_zz*.png animation.gif")
+    #os.system("convert -delay 10 -loop 0 sig*_yy*.png animation.gif")
+    #os.system("convert -delay 10 -loop 0 D*.png animation.gif")    
     os.system("gifview -a animation.gif&")
 
  

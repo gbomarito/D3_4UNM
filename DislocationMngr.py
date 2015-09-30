@@ -252,6 +252,8 @@ class DislocationMngr(object):
 
     def plot_w_stress(self,filename,sig_ff=None,FE_results=None):
         """plot of all dislocations with a stress contour"""
+
+        bound = 1e7
         
         #find stress field
         delta = 0.05*self.sim_size
@@ -274,16 +276,16 @@ class DislocationMngr(object):
                 if sig_ff is not None:          #far field
                     sig += sig_ff(loc)
                 
-                sig_xx[i,j]=float(sig[0,0])
-                sig_yy[i,j]=float(sig[1,1])
-                sig_zz[i,j]=float(sig[2,2])
-                sig_xy[i,j]=float(sig[0,1])
-                sig_xz[i,j]=float(sig[0,2])
-                sig_yz[i,j]=float(sig[1,2])
+                sig_xx[i,j]=float(sig[0,0])*(abs(sig[0,0])<bound) + np.sign(sig[0,0])*bound*(abs(sig[0,0])>bound)
+                sig_yy[i,j]=float(sig[1,1])*(abs(sig[1,1])<bound) + np.sign(sig[1,1])*bound*(abs(sig[1,1])>bound)
+                sig_zz[i,j]=float(sig[2,2])*(abs(sig[2,2])<bound) + np.sign(sig[2,2])*bound*(abs(sig[2,2])>bound)
+                sig_xy[i,j]=float(sig[0,1])*(abs(sig[0,1])<bound) + np.sign(sig[0,1])*bound*(abs(sig[0,1])>bound)
+                sig_xz[i,j]=float(sig[0,2])*(abs(sig[0,2])<bound) + np.sign(sig[0,2])*bound*(abs(sig[0,2])>bound)
+                sig_yz[i,j]=float(sig[1,2])*(abs(sig[1,2])<bound) + np.sign(sig[1,2])*bound*(abs(sig[1,2])>bound)
         
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-2e6,2e6,100) )
+        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -294,7 +296,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_yy, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_yy, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -305,7 +307,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_zz, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_zz, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -316,7 +318,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-1e7,1e7,100) )
+        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
