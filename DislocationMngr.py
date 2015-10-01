@@ -27,16 +27,17 @@ class DislocationMngr(object):
         self.annihilation_dist_climb=ad_climb
         
         self.dislocations=[]
-        '''
-        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        '''
         
+        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        
+        
+        '''
         for i in range(dnum):
             if random.random()>0.5:
                 burgers=np.array((b,0.,0.))
@@ -44,10 +45,11 @@ class DislocationMngr(object):
                 burgers=np.array((-b,0.,0.))
             loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,0.0))
             self.dislocations.append(Dislocation.Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
-        
+        '''
         
         
         self.velocities_last=[None]*len(self.dislocations)
+        self.velocities_last_ext=[None]*len(self.dislocations)
         self.dt_last=None
         self.E_bal_skip=False
         
@@ -61,9 +63,11 @@ class DislocationMngr(object):
         
         #calculate stresses at each dislocation point
         sigma=[None]*dnum
+        sigma_ext=[None]*dnum
         for i in range(dnum):
             d_i=self.dislocations[i]
             sigma[i]=np.zeros((3,3))
+            sigma_ext[i]=np.zeros((3,3))
         
             #stress cused by all dislocations
             for d_j in self.dislocations:
@@ -72,15 +76,16 @@ class DislocationMngr(object):
                 
             #far field stress
             if sig_ff is not None:
-                sigma[i] += sig_ff(self.dislocation.X)
+                sigma_ext[i] += sig_ff(self.dislocations[i].X)
+                sigma[i] += sigma_ext[i]
                 
             #TODO add FE stress field  
             
         #get velocities_next of each dislocation
-        velocities_next=[np.zeros(3)]*dnum
-        velocities=[np.zeros(3)]*dnum
-        for i in range(dnum):
-            d_i=self.dislocations[i]
+        velocities_next=[None]*dnum
+        velocities=[None]*dnum
+        velocities_next_ext=[None]*dnum
+        velocities_ext=[None]*dnum
             
         #adaptive timestep loop
         E_balanced=False
@@ -91,19 +96,25 @@ class DislocationMngr(object):
                 d_i=self.dislocations[i]
                 
                 velocities_next[i]=d_i.get_velocity(sigma[i],self.drag)  
+                velocities_next_ext[i]=d_i.get_velocity(sigma_ext[i],self.drag)  
                 if self.velocities_last[i] is None:
                     velocities[i]=np.copy(velocities_next[i])
+                    velocities_ext[i]=np.copy(velocities_next_ext[i])
                 else:
                     velocities[i]=velocities_next[i]+0.5*dt/self.dt_last*(velocities_next[i]-self.velocities_last[i]) #verlot integration
                     #velocities[i]=0.5*(velocities_next[i]+self.velocities_last[i]) #central diff 
+                    velocities_ext[i]=velocities_next_ext[i]+0.5*dt/self.dt_last*(velocities_next_ext[i]-self.velocities_last_ext[i]) 
             
             #ENERGY CALCS
             #caculate helper for energy dissipation by drag
             v_dot_v = 0.0
+            v_dot_v_ext = 0.0
             for i in range(dnum):
                 v_dot_v += np.dot(velocities[i],velocities[i])
+                v_dot_v_ext += np.dot(velocities[i],velocities_ext[i])
 
             E_drag=v_dot_v*self.drag*dt
+            E_ext=-v_dot_v_ext*self.drag*dt
             E_dislocation=0.0
             for i in range(dnum):
                 dx_i=velocities[i]*dt
@@ -111,12 +122,12 @@ class DislocationMngr(object):
                     dx_j=velocities[j]*dt
                     E_dislocation += Dislocation.interaction_energy(self.dislocations[i],self.dislocations[j],dx_i,dx_j, self.mu,self.nu)
             
-            #print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation, "ratio: ", E_drag/E_dislocation
+            print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation," external: ",E_ext #, "ratio: ", E_drag/E_dislocation
             if self.E_bal_skip:
                 E_balanced=True
                 self.E_bal_skip=False
             else:
-                E_balanced = np.abs(E_drag+E_dislocation)/E_drag<E_TOL
+                E_balanced = np.abs(E_drag+E_dislocation+E_ext)/E_drag<E_TOL
             
             if not E_balanced:
                 dt=dt/2.0
@@ -128,7 +139,8 @@ class DislocationMngr(object):
         #update history variables
         self.dt_last=dt
         for i in range(dnum):
-            self.velocities_last[i]=np.copy(velocities_next[i])        
+            self.velocities_last[i]=np.copy(velocities_next[i])    
+            self.velocities_last_ext[i]=np.copy(velocities_next_ext[i])        
     
         #move dislocations
         for i in range(dnum):
@@ -159,13 +171,14 @@ class DislocationMngr(object):
             print "deleteing: ",i
             del self.dislocations[i]
             del self.velocities_last[i]
+            del self.velocities_last_ext[i]
             self.E_bal_skip=True
             #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
         
         # add reaction products
         #TODO add code to add products of reactions in addition_list
         
-        return dt, abs(E_drag+E_dislocation)/E_drag
+        return dt, abs(E_drag+E_dislocation+E_ext)/E_drag
 
 
     def stress_at_point(self,Y):

@@ -2,7 +2,10 @@ import numpy as np
 import os
 from DislocationMngr import DislocationMngr
 
-
+################################################################################
+def const_shear(loc):
+    shear=4.75e5
+    return np.array(((0,shear,0),(shear,0,0),(0,0,0)))
 
 ################################################################################
 if __name__ == "__main__":
@@ -16,10 +19,10 @@ if __name__ == "__main__":
     #----:: INPUT ::----
     # simulation params
     starting_dt=1e-2
-    sim_time=2e-0
+    sim_time=5e-0
     
     # output params
-    plot_res=sim_time/200.
+    plot_res=sim_time/50.
     
     # material params
     nu=0.3
@@ -49,7 +52,7 @@ if __name__ == "__main__":
     while time<sim_time:
     
         #do timestep
-        dt,E_bal = dm.dd_step(suggested_dt,E_TOL=energy_tol)
+        dt,E_bal = dm.dd_step(suggested_dt,E_TOL=energy_tol, sig_ff=const_shear)
         time+=dt
         
         #adjust timestep based on last timestep
