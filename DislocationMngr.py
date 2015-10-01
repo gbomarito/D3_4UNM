@@ -5,6 +5,7 @@ import math
 import random
 
 import Dislocation
+import DislocationSrc
 
 
 class DislocationMngr(object):
@@ -28,13 +29,20 @@ class DislocationMngr(object):
         
         self.dislocations=[]
         
-        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        #self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        '''
+        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))'''
+
+        self.sources=[]
+        L_nuc = 40.*b
+        self.sources.append(DislocationSrc.DislocationSrc( np.array((-sim_size/2.0,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
+        self.sources.append(DislocationSrc.DislocationSrc( np.array((sim_size/2.0,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
+        
         
         
         '''
@@ -52,6 +60,8 @@ class DislocationMngr(object):
         self.velocities_last_ext=[None]*len(self.dislocations)
         self.dt_last=None
         self.E_bal_skip=False
+        self.L_glide = 20.*b
+        self.L_climb = 5.*b
         
         
 
@@ -60,6 +70,8 @@ class DislocationMngr(object):
         optionally finite element results or a far field stress can be added"""
         
         dnum=len(self.dislocations)
+
+        #print sig_ff(np.array([[0.,0.,0.]]))
         
         #calculate stresses at each dislocation point
         sigma=[None]*dnum
@@ -69,15 +81,19 @@ class DislocationMngr(object):
             sigma[i]=np.zeros((3,3))
             sigma_ext[i]=np.zeros((3,3))
         
-            #stress cused by all dislocations
+            #stress caused by all dislocations
             for d_j in self.dislocations:
                 if d_i is not d_j:
                     sigma[i] += d_j.stress_at_point(d_i.X,self.mu,self.nu)
                 
             #far field stress
             if sig_ff is not None:
+<<<<<<< HEAD
                 sigma_ext[i] += sig_ff(self.dislocations[i].X)
                 sigma[i] += sigma_ext[i]
+=======
+                sigma[i] += sig_ff(d_i.X)
+>>>>>>> 91ad96a02515f75068a6da30cad8788d5ea40aed
                 
             #TODO add FE stress field  
             
@@ -155,9 +171,7 @@ class DislocationMngr(object):
             for j in range(dnum):
                 if i not in removal_list and j not in removal_list and i is not j:
                     d_j=self.dislocations[j]
-                    if Dislocation.check_for_interaction(d_i,d_j,
-                                                self.annihilation_dist_glide,
-                                                self.annihilation_dist_climb):
+                    if Dislocation.check_for_interaction(d_i,d_j,self.annihilation_dist_glide,self.annihilation_dist_climb):
                         doReaction,products=Dislocation.interact(d_i,d_j)
                         if doReaction:
                             removal_list.append(i)
@@ -174,6 +188,20 @@ class DislocationMngr(object):
             del self.velocities_last_ext[i]
             self.E_bal_skip=True
             #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
+
+        #Nucleate dislocations at sources
+        """for i in self.sources:
+            thissig = self.stress_at_point(i.X)
+            #far field stress
+            if sig_ff is not None:
+                thissig += sig_ff(i.X)
+            res = i.load(thissig,self.mu,self.nu, self.L_glide)
+            if len(res) > 0:
+                self.E_bal_skip=True
+                for j in res:
+                    self.dislocations.append(j)
+                    self.velocities_last.append(None)#0.0?"""
+            
         
         # add reaction products
         #TODO add code to add products of reactions in addition_list
@@ -231,7 +259,9 @@ class DislocationMngr(object):
         h=plt.figure() 
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
-            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')   
+            plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
+        for s in self.sources:
+            plt.text(s.X[0],s.X[1],'o')
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([]) 
         plt.axis((-1.5*self.sim_size,1.5*self.sim_size,-1.5*self.sim_size,1.5*self.sim_size))
@@ -241,6 +271,8 @@ class DislocationMngr(object):
 
     def plot_w_stress(self,filename,sig_ff=None,FE_results=None):
         """plot of all dislocations with a stress contour"""
+
+        bound = 1e7
         
         #find stress field
         delta = 0.05*self.sim_size
@@ -261,18 +293,18 @@ class DislocationMngr(object):
                 sig=self.stress_at_point(loc) #disloc stress
                 
                 if sig_ff is not None:          #far field
-                    sigma[i] += sig_ff
+                    sig += sig_ff(loc)
                 
-                sig_xx[i,j]=float(sig[0,0])
-                sig_yy[i,j]=float(sig[1,1])
-                sig_zz[i,j]=float(sig[2,2])
-                sig_xy[i,j]=float(sig[0,1])
-                sig_xz[i,j]=float(sig[0,2])
-                sig_yz[i,j]=float(sig[1,2])
+                sig_xx[i,j]=float(sig[0,0])*(abs(sig[0,0])<bound) + np.sign(sig[0,0])*bound*(abs(sig[0,0])>bound)
+                sig_yy[i,j]=float(sig[1,1])*(abs(sig[1,1])<bound) + np.sign(sig[1,1])*bound*(abs(sig[1,1])>bound)
+                sig_zz[i,j]=float(sig[2,2])*(abs(sig[2,2])<bound) + np.sign(sig[2,2])*bound*(abs(sig[2,2])>bound)
+                sig_xy[i,j]=float(sig[0,1])*(abs(sig[0,1])<bound) + np.sign(sig[0,1])*bound*(abs(sig[0,1])>bound)
+                sig_xz[i,j]=float(sig[0,2])*(abs(sig[0,2])<bound) + np.sign(sig[0,2])*bound*(abs(sig[0,2])>bound)
+                sig_yz[i,j]=float(sig[1,2])*(abs(sig[1,2])<bound) + np.sign(sig[1,2])*bound*(abs(sig[1,2])>bound)
         
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_xx, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -283,7 +315,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_yy, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_yy, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -294,7 +326,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_zz, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_zz, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
@@ -305,7 +337,7 @@ class DislocationMngr(object):
         plt.close()
         
         h=plt.figure()        
-        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-2e8,2e8,100) )
+        plt.contourf(sX,sY,sig_xy, levels=np.linspace(-bound,bound,100) )
         h.axes[0].set_xticks([])
         h.axes[0].set_yticks([])
         for d in self.dislocations:
