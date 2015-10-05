@@ -29,19 +29,22 @@ class DislocationMngr(object):
         
         self.dislocations=[]
         
-        '''
-        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
+        
+        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
+        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,3.*sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
         self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))'''
+        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
 
         self.sources=[]
         L_nuc = 40.*b
-        self.sources.append(DislocationSrc.DislocationSrc( np.array((-sim_size/2.0,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
-        self.sources.append(DislocationSrc.DislocationSrc( np.array((sim_size/2.0,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, self.mu, self.nu ))
+        drag=1.e-3 #poise
+        t_nuc = 2.6e6*drag/m
+        print "t_nuc: ", t_nuc
+        self.sources.append(DislocationSrc.DislocationSrc( np.array((-.5*sim_size,-1.25*sim_size,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, t_nuc, self.mu, self.nu ))
+        self.sources.append(DislocationSrc.DislocationSrc( np.array((sim_size/2.0,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, t_nuc, self.mu, self.nu ))
         
         
         
@@ -88,12 +91,8 @@ class DislocationMngr(object):
                 
             #far field stress
             if sig_ff is not None:
-<<<<<<< HEAD
                 sigma_ext[i] += sig_ff(self.dislocations[i].X)
                 sigma[i] += sigma_ext[i]
-=======
-                sigma[i] += sig_ff(d_i.X)
->>>>>>> 91ad96a02515f75068a6da30cad8788d5ea40aed
                 
             #TODO add FE stress field  
             
@@ -190,17 +189,18 @@ class DislocationMngr(object):
             #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
 
         #Nucleate dislocations at sources
-        """for i in self.sources:
+        for i in self.sources:
             thissig = self.stress_at_point(i.X)
             #far field stress
             if sig_ff is not None:
                 thissig += sig_ff(i.X)
-            res = i.load(thissig,self.mu,self.nu, self.L_glide)
+            res = i.load(thissig,self.mu,self.nu, self.L_glide, dt)
             if len(res) > 0:
                 self.E_bal_skip=True
                 for j in res:
                     self.dislocations.append(j)
-                    self.velocities_last.append(None)#0.0?"""
+                    self.velocities_last.append(None)#0.0?
+                    self.velocities_last_ext.append(None)
             
         
         # add reaction products
@@ -272,7 +272,7 @@ class DislocationMngr(object):
     def plot_w_stress(self,filename,sig_ff=None,FE_results=None):
         """plot of all dislocations with a stress contour"""
 
-        bound = 1e7
+        bound = 1.e9
         
         #find stress field
         delta = 0.05*self.sim_size
@@ -310,6 +310,8 @@ class DislocationMngr(object):
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
+        for s in self.sources:
+            plt.text(s.X[0],s.X[1],'o')
         plt.colorbar()
         pylab.savefig(filename+"_xx.png")
         plt.close()
@@ -321,6 +323,8 @@ class DislocationMngr(object):
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
+        for s in self.sources:
+            plt.text(s.X[0],s.X[1],'o')
         plt.colorbar()
         pylab.savefig(filename+"_yy.png")
         plt.close()
@@ -332,6 +336,8 @@ class DislocationMngr(object):
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
+        for s in self.sources:
+            plt.text(s.X[0],s.X[1],'o')
         plt.colorbar()
         pylab.savefig(filename+"_zz.png")
         plt.close()
@@ -343,6 +349,8 @@ class DislocationMngr(object):
         for d in self.dislocations:
             theta=180.0/np.pi * math.atan2(d.burgers[1],d.burgers[0])
             plt.text(d.X[0],d.X[1],r'$\perp$',ha='center',rotation=theta,va='center')
+        for s in self.sources:
+            plt.text(s.X[0],s.X[1],'o')
         plt.colorbar()
         pylab.savefig(filename+"_xy.png")
         plt.close()

@@ -1,8 +1,9 @@
 import numpy as np
+import Dislocation
 
 class DislocationSrc(object):
 
-    def __init__(self, location, bv, sp, L_nuc, mu, nu):
+    def __init__(self, location, bv, sp, L_nuc, t_nuc, mu, nu):
         """Returns an initialized dislocation source object.  Only sources 
            with line vectors in the z direction are possible.  L_nuc
             should be much larger than L_annihilation, perhaps by a factor of 2.
@@ -11,14 +12,21 @@ class DislocationSrc(object):
         self.burgers=np.copy(bv)
         self.line_vec=np.array((0,0,1))
         self.slip_plane=np.copy(sp)/np.linalg.norm(sp)
+        self.L_nuc = L_nuc
         self.tau_nuc = mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*L_nuc)
+        self.t_nuc = t_nuc
+        self.load_time = 0.
         
 
-    def load(self,sigma,mu,nu, L_glide):
+    def load(self,sigma,mu,nu, L_glide, dt):
         products = []
-        tau = np.dot(self.burgers,np.dot(sigma,self.slip_plane))
+        tau = np.dot(self.burgers/np.linalg.norm(self.burgers),np.dot(sigma,self.slip_plane))
         if abs(tau)>self.tau_nuc:
-            L = mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*tau)
+            self.load_time += dt*np.sign(tau)
+        else:
+            self.load_time = 0
+        if abs(self.load_time)>=self.t_nuc:
+            L = mu*np.linalg.norm(self.burgers)/(2*np.pi*(1-nu)*tau)
             if abs(L)<L_glide:
                 print "These dislocations will immediately annihilate!!!"
                 #We could add two dipoles?  Output this error and reset the time step?
@@ -30,9 +38,10 @@ class DislocationSrc(object):
                 products.append(Dislocation.Dislocation( self.X - Xstep, -self.burgers, self.slip_plane ))
                 tau = tau - mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*1.1*L_glide))
                 L = mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*tau))"""
-            Xstep = L*self.burgers/np.linalg.norm(self.burgers)/2.
+            Xstep = np.sign(self.load_time)*self.L_nuc*self.burgers/np.linalg.norm(self.burgers)/2.
             products.append(Dislocation.Dislocation( self.X + Xstep, self.burgers, self.slip_plane ))
-            products.append(Dislocation.Dislocation( self.X - Xstep, -self.burgers, self.slip_plane ))            
+            products.append(Dislocation.Dislocation( self.X - Xstep, -self.burgers, self.slip_plane ))
+            self.load_time = 0           
         return products
 
     def rotate(self,beta):

@@ -2,18 +2,15 @@ import numpy as np
 import os
 from DislocationMngr import DislocationMngr
 
-<<<<<<< HEAD
 ################################################################################
 def const_shear(loc):
-    shear=4.75e5
+    shear=2e6
     return np.array(((0,shear,0),(shear,0,0),(0,0,0)))
-=======
-def simple_shear():
-        sig = sigma=np.zeros((3,3))
-        sig[0,1] = 2700000.
-        sig[1,0] = sig[0,1]
-        return sig
->>>>>>> 91ad96a02515f75068a6da30cad8788d5ea40aed
+
+def variable_shear(loc, t):
+    shear = 1.8e6#1.3e6 + .5e6*t
+    return np.array(((0,shear,0),(shear,0,0),(0,0,0)))
+
 
 ################################################################################
 if __name__ == "__main__":
@@ -26,26 +23,26 @@ if __name__ == "__main__":
     
     #----:: INPUT ::----
     # simulation params
-    starting_dt=1e-2
-    sim_time=1e-0
+    starting_dt=1e-9
+    sim_time=2.e-8
     
     # output params
-    plot_res=sim_time/50.
+    plot_res=sim_time/100.
     
     # material params
     nu=0.3
-    mu=270000000.
-    drag=1.0e4
-    burgers=4.05e-8/(2.**.5)
+    mu=27.e10 #dyne/cm^2
+    drag=1.e-3 #poise
+    burgers=4.05e-8/(2.**.5) #cm
     
     # integration/discretization params
-    energy_tol=1e-3
+    energy_tol=1.e-3
     
     
     
     #----:: ININTIALIZATION ::----
     # initialize dislocation manager
-    dm=DislocationMngr(nu,mu,drag,dnum=20, b=burgers, sim_size=burgers*100, ad_climb=5*burgers, ad_glide=20*burgers)
+    dm=DislocationMngr(nu,mu,drag,dnum=20, b=burgers, sim_size=burgers*100, ad_climb=1*burgers, ad_glide=5*burgers)
     #dm.plot_w_stress("sig{0:04d}".format(0))
     dm.plot("D{0:04d}".format(0))  
     
@@ -60,7 +57,7 @@ if __name__ == "__main__":
     while time<sim_time:
         """lambda X: time*simple_shear()/sim_time"""
         #do timestep
-        dt,E_bal = dm.dd_step(suggested_dt,E_TOL=energy_tol, sig_ff=const_shear)
+        dt,E_bal = dm.dd_step(suggested_dt,E_TOL=energy_tol, sig_ff=lambda X: variable_shear(X,time/sim_time))
         time+=dt
         
         #adjust timestep based on last timestep
@@ -76,7 +73,7 @@ if __name__ == "__main__":
         print "\tenergy balance: ",E_bal
         #dm.dump()
         if time> next_plot_time:
-            dm.plot_w_stress("sig{0:04d}".format(plot_num),sig_ff=None) 
+            dm.plot_w_stress("sig{0:04d}".format(plot_num),sig_ff=lambda X: variable_shear(X,time/sim_time)) 
             #dm.plot("D{0:04d}".format(plot_num))  
             next_plot_time+=plot_res
             plot_num+=1
