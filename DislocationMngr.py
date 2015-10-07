@@ -7,6 +7,8 @@ import random
 import Dislocation
 import DislocationSrc
 
+import h5py
+
 
 class DislocationMngr(object):
     """A manager that takes care of disloaction storage, querying, and steping
@@ -18,63 +20,55 @@ class DislocationMngr(object):
         drag: drag coefficient <float>
     """
     
-    def __init__(self, n, m,d, dnum=2, b=1.0, sim_size=1.0, ad_glide=20., ad_climb=5.):
-        """Returns an initialized dislocation object"""
-        self.nu=n
-        self.mu=m
-        self.drag=d
-        self.sim_size=sim_size
-        self.annihilation_dist_glide=ad_glide
-        self.annihilation_dist_climb=ad_climb
+    ############################################################################
+    def __init__(self, filename):
+        """Returns an initialized dislocation object from h5file"""
         
+        #open file
+        f=h5py.File(filename,"r")
+        
+        #read scalar quantities
+        self.nu=f["Model"]["nu"][()]
+        self.mu=f["Model"]["mu"][()]
+        self.drag=f["Model"]["B"][()]
+        self.sim_size=f["Model"]["sim_size"][()]
+        self.annihilation_dist_glide=f["Model"]["L_glide"][()]
+        self.annihilation_dist_climb=f["Model"]["L_climb"][()]
+        
+        #read dislocations
         self.dislocations=[]
+        for i in range(f["Model"]["Dislocations"]["burgers_vectors"].shape[0]):
+            bv=f["Model"]["Dislocations"]["burgers_vectors"][i]
+            sp=f["Model"]["Dislocations"]["slip_planes"][i]
+            loc=f["Model"]["Dislocations"]["locations"][i]
+            self.dislocations.append(Dislocation.Dislocation(loc, bv, sp))
         
-        
-        self.dislocations.append(Dislocation.Dislocation( np.array((-sim_size/2.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size/2.,3.*sim_size/4.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*3./4.,0.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-3./4.,0.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((sim_size*-5./4.,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((0.,-sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)) ))
-        self.dislocations.append(Dislocation.Dislocation( np.array((0.,sim_size/2.,0.)), np.array((-b,0.,0.)), np.array((0.,1.,0.)) ))
-
+        #read sources  
         self.sources=[]
-        L_nuc = 40.*b
-        drag=1.e-3 #poise
-        t_nuc = 2.6e6*drag/m
-        print "t_nuc: ", t_nuc
-        self.sources.append(DislocationSrc.DislocationSrc( np.array((-.5*sim_size,-1.25*sim_size,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, t_nuc, self.mu, self.nu ))
-        self.sources.append(DislocationSrc.DislocationSrc( np.array((sim_size/2.0,sim_size/2.,0.)), np.array((b,0.,0.)), np.array((0.,1.,0.)), L_nuc, t_nuc, self.mu, self.nu ))
+        for i in range(f["Model"]["Sources"]["burgers_vectors"].shape[0]):
+            bv=f["Model"]["Sources"]["burgers_vectors"][i]
+            sp=f["Model"]["Sources"]["slip_planes"][i]
+            loc=f["Model"]["Sources"]["locations"][i]
+            L=f["Model"]["Sources"]["L_nuc"][i]
+            t=f["Model"]["Sources"]["t_nuc"][i]
+            self.sources.append(DislocationSrc.DislocationSrc(loc, bv, sp, L, t, self.mu, self.nu))
         
-        
-        
-        '''
-        for i in range(dnum):
-            if random.random()>0.5:
-                burgers=np.array((b,0.,0.))
-            else:
-                burgers=np.array((-b,0.,0.))
-            loc=np.array((-sim_size+random.random()*2*sim_size,-sim_size+random.random()*2*sim_size,0.0))
-            self.dislocations.append(Dislocation.Dislocation( loc, burgers, np.array((0.,1.,0.)) ))
-        '''
-        
-        
+        #initialize history variables
         self.velocities_last=[None]*len(self.dislocations)
         self.velocities_last_ext=[None]*len(self.dislocations)
         self.dt_last=None
-        self.E_bal_skip=False
-        self.L_glide = 20.*b
-        self.L_climb = 5.*b
+        self.E_bal_skip=False   
         
+        #close file
+        f.close()        
         
 
-    def dd_step(self,dt,sig_ff=None,FE_results=None, E_TOL=1e-3):
+    ############################################################################
+    def dd_step(self,dt,sig_ff=None,FE_results=None, E_TOL=1e-3, verbose=False):
         """Increments dislocations based on a time step (dt)
         optionally finite element results or a far field stress can be added"""
         
         dnum=len(self.dislocations)
-
-        #print sig_ff(np.array([[0.,0.,0.]]))
         
         #calculate stresses at each dislocation point
         sigma=[None]*dnum
@@ -137,16 +131,22 @@ class DislocationMngr(object):
                     dx_j=velocities[j]*dt
                     E_dislocation += Dislocation.interaction_energy(self.dislocations[i],self.dislocations[j],dx_i,dx_j, self.mu,self.nu)
             
-            print "dt: ",dt," drag: ",E_drag," disloc: ",E_dislocation," external: ",E_ext #, "ratio: ", E_drag/E_dislocation
+            #verbose output
+            if verbose:
+                print "dt: ",dt," E_drag: ",E_drag," E_disloc: ",E_dislocation," E_external: ",E_ext
+            
+            # calculate energy balance
+            E_bal=np.abs((E_drag+E_dislocation+E_ext)/E_dislocation)
             if self.E_bal_skip:
                 E_balanced=True
                 self.E_bal_skip=False
             else:
-                E_balanced = np.abs(E_drag+E_dislocation+E_ext)/E_drag<E_TOL
+                E_balanced = E_bal<E_TOL
             
             if not E_balanced:
                 dt=dt/2.0
-                
+            
+            #hard stop if E_bal is not converging 
             bal_count+=1;
             if bal_count>100:
                 raw_input()
@@ -188,27 +188,28 @@ class DislocationMngr(object):
             self.E_bal_skip=True
             #self.velocities_last=[None]*len(self.dislocations) #reset velocities so energy balance works in next step
 
+        # add reaction products
+        #TODO add code to add products of reactions in addition_list
+
         #Nucleate dislocations at sources
         for i in self.sources:
             thissig = self.stress_at_point(i.X)
             #far field stress
             if sig_ff is not None:
                 thissig += sig_ff(i.X)
-            res = i.load(thissig,self.mu,self.nu, self.L_glide, dt)
+            res = i.load(thissig,self.mu,self.nu, self.annihilation_dist_glide, dt)
             if len(res) > 0:
                 self.E_bal_skip=True
                 for j in res:
                     self.dislocations.append(j)
-                    self.velocities_last.append(None)#0.0?
+                    self.velocities_last.append(None)
                     self.velocities_last_ext.append(None)
-            
+
         
-        # add reaction products
-        #TODO add code to add products of reactions in addition_list
-        
-        return dt, abs(E_drag+E_dislocation+E_ext)/E_drag
+        return dt, E_bal
 
 
+    ############################################################################
     def stress_at_point(self,Y):
         """calculates the stress at point Y caused by all dislocations"""
         
@@ -218,7 +219,8 @@ class DislocationMngr(object):
             
         return sigma
 
-
+    
+    ############################################################################
     def disp_at_point(self,Y):
         """calculates the displacement at point Y caused by all dislocations"""
         
@@ -229,6 +231,7 @@ class DislocationMngr(object):
         return disp
 
 
+    ############################################################################
     def distortion_at_point(self,Y):
         """calculates the displacement at point Y caused by all dislocations"""
         
@@ -239,6 +242,7 @@ class DislocationMngr(object):
         return distortion
 
 
+    ############################################################################
     def dump(self):
         """dumps the location of all dislocations"""
         
@@ -249,6 +253,7 @@ class DislocationMngr(object):
         #    count+=1
 
 
+    ############################################################################
     def plot(self,filename):
         """plot of all dislocations is output to a file"""
         
@@ -269,6 +274,7 @@ class DislocationMngr(object):
         plt.close()
 
 
+    ############################################################################
     def plot_w_stress(self,filename,sig_ff=None,FE_results=None):
         """plot of all dislocations with a stress contour"""
 
