@@ -41,7 +41,7 @@ class DislocationMngr(object):
             bv=f["Model"]["Dislocations"]["burgers_vectors"][i]
             sp=f["Model"]["Dislocations"]["slip_planes"][i]
             loc=f["Model"]["Dislocations"]["locations"][i]
-            self.dislocations.append(Dislocation.Dislocation(loc, bv, sp))
+            self.dislocations.append(Dislocation.Dislocation(loc, bv, sp, self.mu,self.nu))
         
         #read sources  
         self.sources=[]
@@ -75,8 +75,7 @@ class DislocationMngr(object):
         sigma_ext=[None]*dnum
         for i in range(dnum):
             d_i=self.dislocations[i]
-            sigma[i]=np.zeros((3,3))
-            sigma_ext[i]=np.zeros((3,3))
+            sigma[i]=np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
             #stress caused by all dislocations
             for d_j in self.dislocations:
@@ -85,7 +84,7 @@ class DislocationMngr(object):
                 
             #far field stress
             if sig_ff is not None:
-                sigma_ext[i] += sig_ff(self.dislocations[i].X)
+                sigma_ext[i] = sig_ff(self.dislocations[i].X)
                 sigma[i] += sigma_ext[i]
                 
             #TODO add FE stress field  
@@ -213,7 +212,7 @@ class DislocationMngr(object):
     def stress_at_point(self,Y):
         """calculates the stress at point Y caused by all dislocations"""
         
-        sigma=np.zeros((3,3))
+        sigma=np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         for d_i in self.dislocations:
             sigma += d_i.stress_at_point(Y,self.mu,self.nu)
             

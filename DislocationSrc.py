@@ -39,8 +39,8 @@ class DislocationSrc(object):
                 tau = tau - mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*1.1*L_glide))
                 L = mu*np.linalg.norm(bv)/(2*np.pi*(1-nu)*tau))"""
             Xstep = np.sign(self.load_time)*self.L_nuc*self.burgers/np.linalg.norm(self.burgers)/2.
-            products.append(Dislocation.Dislocation( self.X + Xstep, self.burgers, self.slip_plane ))
-            products.append(Dislocation.Dislocation( self.X - Xstep, -self.burgers, self.slip_plane ))
+            products.append(Dislocation.Dislocation( self.X + Xstep, self.burgers, self.slip_plane, mu, nu ))
+            products.append(Dislocation.Dislocation( self.X - Xstep, -self.burgers, self.slip_plane, mu, nu ))
             self.load_time = 0           
         return products
 

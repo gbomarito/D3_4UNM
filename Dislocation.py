@@ -10,7 +10,7 @@ class Dislocation(object):
         slip_plane: slip plane <numpy vector>
     """
     
-    def __init__(self, location, bv, sp):
+    def __init__(self, location, bv, sp, mu,nu):
         """Returns an initialized dislocation object.  Only dislocations 
            with line vectors in the z direction are possible."""
         self.X=np.copy(location)
@@ -20,6 +20,14 @@ class Dislocation(object):
 
         self.has_screw_component=abs(bv[2])>np.linalg.norm(bv)/100
         self.has_edge_component=abs(np.linalg.norm(bv[0:1]))>np.linalg.norm(bv)/100
+        
+        self.bedge = np.array((self.burgers[0],self.burgers[1],0.))
+        self.bedge_norm = np.linalg.norm(self.bedge)
+        self.edge_const = -mu*self.bedge_norm/(2*np.pi*(1-nu))
+        
+        self.bscrew = np.array((0.,0.,self.burgers[2]))
+        self.bscrew_norm = self.burgers[2] 
+        self.screw_const=-mu*self.bscrew_norm/(2*np.pi)
         
         self.update_g_mats()
         
@@ -120,55 +128,72 @@ class Dislocation(object):
         self.g_screw = np.transpose(self.g_screw)
         
         #update g matrix for edge component
-        bedge = self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
-        b = np.linalg.norm(bedge)
-        self.g_edge = np.vstack((bedge/b,np.cross(self.line_vec,bedge/b),self.line_vec))
+        self.g_edge = np.vstack((self.bedge/self.bedge_norm,np.cross(self.line_vec,self.bedge/self.bedge_norm),self.line_vec))
         self.g_edge = np.transpose(self.g_edge)
         
     def stress_screw(self, Y, mu, nu):
         """finds stress caused by screw component of dislocation (self) at point
         Y in a material with elastic properties mu, nu"""
+        dx = Y-self.X;
+        rx = self.g_screw[0,0]*dx[0] + self.g_screw[1,0]*dx[1]
+        ry = self.g_screw[0,1]*dx[0] + self.g_screw[1,1]*dx[1] #np.dot(np.transpose(self.g_screw),Y-self.X)
         
-        bscrew = np.array((0.,0.,self.burgers[2])) #np.dot(self.burgers,self.line_vec)*self.line_vec
-        b = self.burgers[2] #np.linalg.norm(bscrew)
-
-        r = np.dot(np.transpose(self.g_screw),Y-self.X)
+        rn2 = rx*rx + ry*ry #np.linalg.norm(r)
         
-        rn = np.linalg.norm(r)
-        
-        sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
-        
-        if np.abs(rn)>1e-8:
-            sig[0,2] = -mu*b*r[1]/(2*np.pi*rn*rn)
+        if rn2>1e-16:
+            sig=np.empty((3,3))
+            sig[0,2] = ry*self.screw_const/(rn2)
             sig[2,0] = sig[0,2]
-            
-            sig[1,2] = -mu*b*r[0]/(2*np.pi*rn*rn)
+            sig[1,2] = rx*self.screw_const/(rn2)
             sig[2,1] = sig[1,2]
+            sig[0,0]=0.
+            sig[0,1]=0.
+            sig[1,0]=0.
+            sig[1,1]=0.
+            sig[2,2]=0.
+        else:        
+            sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
         
-        return np.dot(np.dot(self.g_screw,sig),np.transpose(self.g_screw))
+        return np.dot(np.dot(self.g_screw,sig),np.transpose(self.g_screw))  #should be able to do this
 
     def stress_edge(self, Y, mu, nu):
         """finds stress caused by edge component of dislocation (self) at point
         Y in a material with elastic properties mu, nu"""
-        bedge = np.array((self.burgers[0],self.burgers[1],0.)) #self.burgers - np.dot(self.burgers,self.line_vec)*self.line_vec
-        b = np.linalg.norm(bedge[0:1])
         
-        r = np.dot(np.transpose(self.g_edge),Y-self.X)
+        dx = Y-self.X;
+        rx= self.g_edge[0,0]*dx[0] + self.g_edge[1,0]*dx[1]
+        ry= self.g_edge[0,1]*dx[0] + self.g_edge[1,1]*dx[1] #np.dot(np.transpose(self.g_edge),Y-self.X)
         
-        rn = np.linalg.norm(r)
+        rx2=rx*rx
+        ry2=ry*ry
+        rn2 = rx2 + ry2 #np.linalg.norm(r)
         
-        sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
-        
-        if np.abs(rn)>1e-8:
-            C = -mu*b/(2*np.pi*(1-nu))
+        if rn2>1e-16:
+            rn4=rn2*rn2
             
-            sig[0,0] = C*(r[1]/rn**4)*(r[1]*r[1] + 3*r[0]*r[0])
-            sig[1,1] = C*(r[1]/rn**4)*(r[1]*r[1] - r[0]*r[0])
-            sig[0,1] = -C*(r[0]/rn**4)*(r[0]*r[0] - r[1]*r[1])
-            sig[1,0] = sig[0,1]
-            sig[2,2] = C*2*nu*(r[1]*r[1]/(rn*rn))
-        
-        return np.dot(np.dot(self.g_edge,sig),np.transpose(self.g_edge))
+            sxx = self.edge_const*(ry/rn4)*(ry2 + 3*rx2)
+            syy = self.edge_const*(ry/rn4)*(ry2 - rx2)
+            sxy = -self.edge_const*(rx/rn4)*(rx2 - ry2)
+            szz = self.edge_const*2*nu*(ry2/(rn2))
+            
+            tmp1=self.g_edge[0,0]*sxx+self.g_edge[0,1]*sxy
+            tmp2=self.g_edge[0,0]*sxy+self.g_edge[0,1]*syy
+            
+            sig=np.empty((3,3))
+            sig[0,0]=self.g_edge[0,0]*tmp1+self.g_edge[0,1]*tmp2
+            sig[0,1]=self.g_edge[1,0]*tmp1+self.g_edge[1,1]*tmp2
+            sig[1,0]=sig[0,1]
+            sig[1,1]=self.g_edge[1,0]*self.g_edge[1,0]*sxx+self.g_edge[1,1]*(2*self.g_edge[1,0]*sxy+self.g_edge[1,1]*syy)
+            sig[2,2]=szz
+            sig[0,2]=0.
+            sig[1,2]=0.
+            sig[2,0]=0.
+            sig[2,1]=0.
+            #np.dot(np.dot(self.g_edge,sig),np.transpose(self.g_edge))
+        else:
+            sig = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+            
+        return sig 
 
     def distortion_screw(self, Y, mu, nu):
         bscrew = np.dot(self.burgers,self.line_vec)*self.line_vec
@@ -271,9 +296,9 @@ class Dislocation(object):
 def interaction_energy(A,B, dXa, dXb, mu, nu):
     Ra = B.X - A.X
     R = Ra + dXb - dXa
-    Rmag = np.linalg.norm(R)
+    Rmag = np.sqrt(R[0]*R[0] + R[1]*R[1]) #np.linalg.norm(R)
     Rhat = R/Rmag
-    Ramag = np.linalg.norm(Ra)
+    Ramag = np.sqrt(Ra[0]*Ra[0] + Ra[1]*Ra[1]) #np.linalg.norm(Ra)
     Rahat = Ra/Ramag
     ba = A.burgers
     bb = B.burgers
@@ -285,11 +310,12 @@ def interaction_energy(A,B, dXa, dXb, mu, nu):
     dE += -(1/(1-nu))*np.dot(np.cross(ba,xi),Rahat)*np.dot(np.cross(bb,xi),Rahat)
     dE = -dE*mu/(2*np.pi)
     """
-    dE = ba[2]*bb[2]*np.log(Rmag/Ramag)
-    dE += (1/(1-nu))*(ba[1]*bb[1] + ba[0]*bb[0])*np.log(Rmag/Ramag)
-    dE += (1/(1-nu))*(ba[1]*Rhat[0] - ba[0]*Rhat[1])*(bb[1]*Rhat[0] - bb[0]*Rhat[1])
-    dE += -(1/(1-nu))*(ba[1]*Rahat[0] - ba[0]*Rahat[1])*(bb[1]*Rahat[0] - bb[0]*Rahat[1])
-    dE = -dE*mu/(2*np.pi)
+    logRRa=np.log(Rmag/Ramag)
+    dE = ba[2]*bb[2]*logRRa
+    dE += (1/(1-nu))*( (ba[1]*bb[1] + ba[0]*bb[0])*logRRa
+                      +(ba[1]*Rhat[0] - ba[0]*Rhat[1])*(bb[1]*Rhat[0] - bb[0]*Rhat[1])
+                      -(ba[1]*Rahat[0] - ba[0]*Rahat[1])*(bb[1]*Rahat[0] - bb[0]*Rahat[1]))
+    dE *= -mu/(2*np.pi)
     
     return dE
 
@@ -297,11 +323,11 @@ def check_for_interaction(A,B, L_glide, L_climb):
     """Checks to see if B is in range of A.  Extinction threshold is an oblate 
     ellipsoid"""
     r = B.X - A.X
-    r_off_plane = np.dot(r,A.slip_plane)*A.slip_plane
+    r_off_plane = (r[0]*A.slip_plane[0] + r[1]*A.slip_plane[1])*A.slip_plane
     r_in_plane = r - r_off_plane
-    d_climb = np.linalg.norm(r_off_plane)
-    d_glide = np.linalg.norm(r_in_plane)
-    if d_climb**2./L_climb**2.+ d_glide**2./L_glide**2. < 1.:
+    d_climb2 = (r_off_plane[0]*r_off_plane[0] + r_off_plane[1]*r_off_plane[1]) #np.linalg.norm(r_off_plane)
+    d_glide2 = (r_in_plane[0]*r_in_plane[0] + r_in_plane[1]*r_in_plane[1]) #np.linalg.norm(r_in_plane)
+    if d_climb2/(L_climb*L_climb)+ d_glide2/(L_glide*L_glide) < 1.:
         return True
     else:
         return False
